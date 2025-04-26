@@ -1,6 +1,9 @@
+import 'dart:convert';
+import 'dart:io';
 import 'package:dotted_border/dotted_border.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import '../api/api_service.dart';
 
 class MakeComplaintScreen extends StatefulWidget {
   const MakeComplaintScreen({Key? key}) : super(key: key);
@@ -28,13 +31,28 @@ class _MakeComplaintScreenState extends State<MakeComplaintScreen> {
     final pickedFile = await _picker.pickImage(source: source);
     if (pickedFile != null) {
       setState(() => imageFile = pickedFile);
+
+      final bytes = await File(pickedFile.path).readAsBytes();
+      final base64Image = base64Encode(bytes);
+
+      final extractedText = await ApiService.extractTextFromImage(base64Image);
+
+      if (extractedText != null && extractedText.trim().isNotEmpty) {
+        setState(() {
+          _detailsController.text = extractedText;
+        });
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('OCR failed or returned no text.')),
+        );
+      }
     }
   }
 
   void _submitComplaint() {
-    if (selectedComplaintType == null) {
+    if (selectedComplaintType == null || _detailsController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select a complaint type.')),
+        const SnackBar(content: Text('Please select a complaint type and provide details.')),
       );
       return;
     }
@@ -43,8 +61,7 @@ class _MakeComplaintScreenState extends State<MakeComplaintScreen> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -79,7 +96,7 @@ class _MakeComplaintScreenState extends State<MakeComplaintScreen> {
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(30)),
                   padding:
-                      const EdgeInsets.symmetric(vertical: 12, horizontal: 120),
+                  const EdgeInsets.symmetric(vertical: 12, horizontal: 120),
                 ),
                 child: const Text("OK",
                     style: TextStyle(color: Colors.white, fontSize: 16)),
@@ -177,11 +194,11 @@ class _MakeComplaintScreenState extends State<MakeComplaintScreen> {
       children: [
         Expanded(
             child: _buildImageUploadOption('Upload Image', Icons.upload,
-                () => _pickImage(ImageSource.gallery))),
+                    () => _pickImage(ImageSource.gallery))),
         const SizedBox(width: 10),
         Expanded(
             child: _buildImageUploadOption('Take Photo', Icons.camera_alt,
-                () => _pickImage(ImageSource.camera))),
+                    () => _pickImage(ImageSource.camera))),
       ],
     );
   }
@@ -227,7 +244,7 @@ class _MakeComplaintScreenState extends State<MakeComplaintScreen> {
           maxLines: null,
           decoration: const InputDecoration(
             hintText:
-                'Please provide any additional details about your complaint...',
+            'Please provide any additional details about your complaint...',
             border: InputBorder.none,
           ),
         ),
@@ -243,7 +260,7 @@ class _MakeComplaintScreenState extends State<MakeComplaintScreen> {
         style: ElevatedButton.styleFrom(
           backgroundColor: const Color(0xFF175579),
           shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+          RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
           elevation: 0,
         ),
         child: const Text('Submit Complaint',

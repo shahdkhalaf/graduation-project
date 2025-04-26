@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
-
+import 'api/api_service.dart';
+import 'components/go_button.dart';
 import 'chat.dart';
 import 'make_complaint_screen.dart';
+import 'map_view.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -16,6 +19,11 @@ class _HomeScreenState extends State<HomeScreen> {
   String destination = "My Destination";
   bool isTracking = false; // To check if tracking is active
   String? trackingUserId; // Store the ID of the user being tracked
+
+  late GoogleMapController mapController;
+  void _onMapCreated(GoogleMapController controller) {
+    mapController = controller;
+  }
 
   // ===================== Location Selection =====================
   void _selectLocation(bool isStartingPoint) async {
@@ -548,7 +556,7 @@ class _HomeScreenState extends State<HomeScreen> {
       body: Stack(
         children: [
           Positioned.fill(
-            child: Image.asset('assets/map.png', fit: BoxFit.cover),
+            child: MapView(onMapCreated: _onMapCreated),
           ),
           Positioned(
             top: 40,
@@ -699,21 +707,12 @@ class _HomeScreenState extends State<HomeScreen> {
                                 SizedBox(
                                   width: 80,
                                   height: 50,
-                                  child: ElevatedButton(
-                                    onPressed: _showRouteConfirmation,
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: const Color(0xFF175579),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(30),
-                                      ),
-                                    ),
-                                    child: const Text(
-                                      "GO",
-                                      style: TextStyle(
-                                          fontSize: 16, color: Colors.white),
+                                  child: buildGoButton(
+                                  context: context,
+                                  startingPoint: startingPoint,
+                                  destination: destination,
                                     ),
                                   ),
-                                ),
                               ],
                             ),
                           ],
