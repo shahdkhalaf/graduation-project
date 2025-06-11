@@ -1,28 +1,35 @@
+// lib/home.dart
+
 import 'package:flutter/material.dart';
-import 'api/api_service.dart';
-import 'components/go_button.dart';
+import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
+
+import 'mapbox_view.dart';         // our helper widget
+import 'api/api_service.dart';     // if you still need it
+import 'components/go_button.dart';// your existing “GO” button
 import 'chat.dart';
 import 'make_complaint_screen.dart';
-import 'map_view.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
 
   @override
-  _HomeScreenState createState() => _HomeScreenState();
+  State<HomeScreen> createState() => _HomeScreenState();
 }
 
 class _HomeScreenState extends State<HomeScreen> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
-  String startingPoint = "My current location";
-  String destination = "My Destination";
-  bool isTracking = false; // To check if tracking is active
-  String? trackingUserId; // Store the ID of the user being tracked
 
-  late GoogleMapController mapController;
-  void _onMapCreated(GoogleMapController controller) {
-    mapController = controller;
+  String startingPoint = "My current location";
+  String destination   = "My Destination";
+
+  bool isTracking = false;       // Live‐tracking flag
+  String? trackingUserId;        // ID being tracked
+
+  MapboxMap? mapboxMap;          // Store controller once map is ready
+
+  void _onMapCreated(MapboxMap controller) {
+    mapboxMap = controller;
+    // You can manipulate camera or add annotations here if needed.
   }
 
   // ===================== Location Selection =====================
@@ -59,12 +66,13 @@ class _HomeScreenState extends State<HomeScreen> {
     ];
 
     String currentLocation = isStartingPoint ? startingPoint : destination;
-    String otherLocation = isStartingPoint ? destination : startingPoint;
+    String otherLocation   = isStartingPoint ? destination    : startingPoint;
 
     List<String> availableLocations = places.where((location) {
       if (location == currentLocation) return false;
 
       if (!isStartingPoint) {
+        // If selecting “ending point,” apply disconnected‐areas logic:
         if (urbanAreas.contains(startingPoint)) {
           if (!disconnectedAreas["الكيلو 21"]!.contains(location)) {
             return false;
@@ -95,9 +103,9 @@ class _HomeScreenState extends State<HomeScreen> {
           child: ListView(
             children: availableLocations
                 .map((place) => ListTile(
-                      title: Text(place),
-                      onTap: () => Navigator.pop(context, place),
-                    ))
+              title: Text(place),
+              onTap: () => Navigator.pop(context, place),
+            ))
                 .toList(),
           ),
         );
@@ -128,10 +136,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
         return Dialog(
           backgroundColor: Colors.white,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          insetPadding:
-              const EdgeInsets.symmetric(horizontal: 25, vertical: 100),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          insetPadding: const EdgeInsets.symmetric(horizontal: 25, vertical: 100),
           child: Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
@@ -162,7 +168,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 const SizedBox(height: 16),
                 const Text(
                   "To start a live location session, enter the ID of the person you want to track.\n"
-                  "Once they accept your request, both of your locations will be visible on the map in real-time.",
+                      "Once they accept your request, both of your locations will be visible on the map in real-time.",
                   style: TextStyle(fontSize: 16, color: Colors.black),
                 ),
                 const SizedBox(height: 17),
@@ -186,8 +192,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     onPressed: () {
                       if (userId.isEmpty) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                              content: Text("Please enter a User ID")),
+                          const SnackBar(content: Text("Please enter a User ID")),
                         );
                         return;
                       }
@@ -216,7 +221,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _startLiveTracking(String userId) async {
-    _showWaitingDialog(userId); // Pass userId here
+    _showWaitingDialog(userId);
     await Future.delayed(const Duration(seconds: 5));
     Navigator.of(context, rootNavigator: true).pop();
     _showTrackingConfirmation(userId);
@@ -232,8 +237,7 @@ class _HomeScreenState extends State<HomeScreen> {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
           ),
-          insetPadding:
-              const EdgeInsets.symmetric(horizontal: 25, vertical: 150),
+          insetPadding: const EdgeInsets.symmetric(horizontal: 25, vertical: 150),
           child: Padding(
             padding: const EdgeInsets.all(20),
             child: Stack(
@@ -312,8 +316,7 @@ class _HomeScreenState extends State<HomeScreen> {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
-          insetPadding:
-              const EdgeInsets.symmetric(horizontal: 25, vertical: 150),
+          insetPadding: const EdgeInsets.symmetric(horizontal: 25, vertical: 150),
           child: Stack(
             children: [
               Padding(
@@ -340,8 +343,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           color: Colors.black87,
                         ),
                         children: [
-                          const TextSpan(
-                              text: "You’re now sharing live locations with\n"),
+                          const TextSpan(text: "You’re now sharing live locations with\n"),
                           const TextSpan(text: "User ID: "),
                           TextSpan(
                             text: userId,
@@ -359,8 +361,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         color: Color(0xFF175579),
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(Icons.check,
-                          color: Colors.white, size: 40),
+                      child: const Icon(Icons.check, color: Colors.white, size: 40),
                     ),
                     const SizedBox(height: 20),
                     RichText(
@@ -376,9 +377,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             text: "1 hour",
                             style: TextStyle(fontWeight: FontWeight.bold),
                           ),
-                          TextSpan(
-                              text:
-                                  ".\nYou can continue exploring the app while tracking runs in the background."),
+                          TextSpan(text: ".\nYou can continue exploring the app while tracking runs in the background."),
                         ],
                       ),
                     ),
@@ -402,8 +401,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _stopSharing() {
     setState(() {
-      isTracking = false; // Reset tracking status
-      trackingUserId = null; // Clear the user ID
+      isTracking = false;
+      trackingUserId = null;
     });
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text("Stopped sharing location")),
@@ -416,10 +415,8 @@ class _HomeScreenState extends State<HomeScreen> {
       context: context,
       builder: (BuildContext context) {
         return Dialog(
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          insetPadding:
-              const EdgeInsets.symmetric(horizontal: 20, vertical: 100),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 100),
           child: Container(
             padding: const EdgeInsets.all(20),
             child: Column(
@@ -429,9 +426,10 @@ class _HomeScreenState extends State<HomeScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text("Your Route",
-                        style: TextStyle(
-                            fontSize: 18, fontWeight: FontWeight.bold)),
+                    const Text(
+                      "Your Route",
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
                     GestureDetector(
                       onTap: () => Navigator.pop(context),
                       child: const Icon(Icons.close, color: Colors.grey),
@@ -439,8 +437,10 @@ class _HomeScreenState extends State<HomeScreen> {
                   ],
                 ),
                 const SizedBox(height: 6),
-                const Text("Confirm where you are going",
-                    style: TextStyle(fontSize: 14, color: Colors.grey)),
+                const Text(
+                  "Confirm where you are going",
+                  style: TextStyle(fontSize: 14, color: Colors.grey),
+                ),
                 const SizedBox(height: 20),
                 Row(
                   children: [
@@ -477,13 +477,13 @@ class _HomeScreenState extends State<HomeScreen> {
                     onPressed: () => Navigator.pop(context),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF175579),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(30)),
-                      padding: const EdgeInsets.symmetric(
-                          vertical: 14.0, horizontal: 40.0),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                      padding: const EdgeInsets.symmetric(vertical: 14.0, horizontal: 40.0),
                     ),
-                    child: const Text("Confirm Route",
-                        style: TextStyle(fontSize: 16, color: Colors.white)),
+                    child: const Text(
+                      "Confirm Route",
+                      style: TextStyle(fontSize: 16, color: Colors.white),
+                    ),
                   ),
                 ),
               ],
@@ -501,12 +501,8 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label,
-              style:
-                  const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
-          Text(value,
-              style:
-                  const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+          Text(label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+          Text(value, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
         ],
       ),
     );
@@ -517,7 +513,7 @@ class _HomeScreenState extends State<HomeScreen> {
       mainAxisSize: MainAxisSize.min,
       children: List.generate(
         6,
-        (index) => Container(
+            (index) => Container(
           width: 2,
           height: 5,
           color: Colors.grey.shade600,
@@ -531,9 +527,14 @@ class _HomeScreenState extends State<HomeScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label,
-            style: const TextStyle(
-                fontSize: 12, color: Colors.grey, fontWeight: FontWeight.bold)),
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 12,
+            color: Colors.grey,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
         const SizedBox(height: 4),
         Text(
           place,
@@ -553,11 +554,22 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       key: _scaffoldKey,
       drawer: _buildDrawer(),
+
       body: Stack(
         children: [
+          // ──► 1) Fill the entire background with MapboxView:
           Positioned.fill(
-            child: MapView(onMapCreated: _onMapCreated),
+            child: MapboxView(
+              onMapCreated: _onMapCreated,
+              styleUri: "mapbox://styles/mapbox/streets-v11",
+              cameraOptions: CameraOptions(
+                center: Point(coordinates: Position(29.9187, 31.2001)),
+                zoom: 13.0,
+              ),
+            ),
           ),
+
+          // ──► 2) The menu button in top-left:
           Positioned(
             top: 40,
             left: 20,
@@ -572,8 +584,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 child: Center(
                   child: SizedBox(
-                    width: 37, // عرض الصورة
-                    height: 37, // ارتفاع الصورة
+                    width: 37,
+                    height: 37,
                     child: Image.asset(
                       'assets/img_1.png',
                       fit: BoxFit.contain,
@@ -583,6 +595,8 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
           ),
+
+          // ──► 3) If live‐tracking is active, show “STOP SHARING” + sample circles:
           if (isTracking) ...[
             Positioned(
               top: 40,
@@ -592,22 +606,21 @@ class _HomeScreenState extends State<HomeScreen> {
                 onPressed: _stopSharing,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF175579),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(30),
-                  ),
-                  padding: EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
                 ),
                 child: const Text(
                   "STOP SHARING",
                   style: TextStyle(
-                      fontSize: 16,
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold),
+                    fontSize: 16,
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
             ),
 
-            // Add markers for both locations (example positions)
+            // Example circle for tracked users:
             Positioned(
               left: 100,
               top: 150,
@@ -654,6 +667,8 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
           ],
+
+          // ──► 4) Bottom panel with “GO” button and location selection:
           Align(
             alignment: Alignment.bottomCenter,
             child: Container(
@@ -687,8 +702,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           children: [
                             GestureDetector(
                               onTap: () => _selectLocation(true),
-                              child: _buildLocationRow(
-                                  "STARTING POINT", startingPoint),
+                              child: _buildLocationRow("STARTING POINT", startingPoint),
                             ),
                             const SizedBox(height: 12),
                             Divider(color: Colors.grey.shade300, thickness: 1),
@@ -699,8 +713,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 Expanded(
                                   child: GestureDetector(
                                     onTap: () => _selectLocation(false),
-                                    child: _buildLocationRow(
-                                        "ENDING POINT", destination),
+                                    child: _buildLocationRow("ENDING POINT", destination),
                                   ),
                                 ),
                                 const SizedBox(width: 16),
@@ -708,11 +721,11 @@ class _HomeScreenState extends State<HomeScreen> {
                                   width: 80,
                                   height: 50,
                                   child: buildGoButton(
-                                  context: context,
-                                  startingPoint: startingPoint,
-                                  destination: destination,
-                                    ),
+                                    context: context,
+                                    startingPoint: startingPoint,
+                                    destination: destination,
                                   ),
+                                ),
                               ],
                             ),
                           ],

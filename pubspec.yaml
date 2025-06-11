@@ -27,14 +27,29 @@ environment:
 # dependencies can be manually updated by changing the version numbers below to
 # the latest version available on pub.dev. To see which dependencies have newer
 # versions available, run `flutter pub outdated`.
-dependencies:
 
+
+dependencies:
   flutter:
     sdk: flutter
+
+  # ← Add this line (or update to the latest 2.x version)
+
+  # Use a 0.14.x version of mapbox_maps_flutter, NOT 0.15+
+  mapbox_maps_flutter: ^2.8.0
+
+  # Geolocator remains the same
+  geolocator: ^9.0.2
+
+  # For HTTP calls
+  http: ^0.13.5
+
+  # For decoding the Mapbox polyline
+  flutter_polyline_points: ^1.0.0
+
   dotted_border: ^2.0.0
-  image_picker: ^1.1.2
-  http: ^0.13.6
-  google_maps_flutter: ^2.5.0
+  image_picker: ^1.1.2  # (or your current version)
+
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
@@ -69,7 +84,9 @@ flutter:
     - assets/apple.png
     - assets/salkah_logo.png
     - assets/salkah.png
-
+    - assets/icons/blue_dot.png
+    - assets/icons/red_station.png
+    - assets/icons/grey_station.png
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in
   # the material Icons class.

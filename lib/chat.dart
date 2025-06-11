@@ -19,7 +19,7 @@ class _ChatAssistScreenState extends State<ChatAssistScreen> {
 
   // ◾ Replace this with your actual ngrok URL (no trailing slash)
   static const String _chatbotBaseUrl =
-      "https://5386-156-212-129-222.ngrok-free.app";
+      "http://74.162.120.214:5000/api/query";
   // ◾ Your Flask app’s route is /api/query
   static const String _chatPath = "/api/query";
 

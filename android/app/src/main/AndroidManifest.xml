@@ -1,19 +1,12 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-
-    <!-- your permissions here -->
+    <!-- 1) Grant INTERNET and (optional) location permissions -->
     <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
-    <!-- … -->
-
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
     <application
         android:label="graduation_project"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
-
-        <!-- ⚠️ Move your API key here, not inside <activity> -->
-        <meta-data
-            android:name="com.google.android.geo.API_KEY"
-            android:value="AIzaSyDcbxHyr1mtmc7uT1ruWDHNZRnafevr09M"/>
 
         <activity
             android:name=".MainActivity"
@@ -39,6 +32,5 @@
             android:value="2" />
     </application>
 
-    <!-- queries block… -->
-
 </manifest>
+

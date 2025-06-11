@@ -1,5 +1,8 @@
+// lib/map_screen.dart
 import 'package:flutter/material.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
+
+import '../mapbox_view.dart'; // our helper from earlier
 
 class MapScreen extends StatefulWidget {
   const MapScreen({Key? key}) : super(key: key);
@@ -9,9 +12,7 @@ class MapScreen extends StatefulWidget {
 }
 
 class _MapScreenState extends State<MapScreen> {
-  late GoogleMapController mapController;
-
-  final LatLng _initialPosition = const LatLng(31.2001, 29.9187); // Alexandria, Egypt
+  MapboxMap? mapController;
 
   @override
   Widget build(BuildContext context) {
@@ -20,18 +21,19 @@ class _MapScreenState extends State<MapScreen> {
         title: const Text('Map'),
         backgroundColor: const Color(0xFF175579),
       ),
-      body: GoogleMap(
-        onMapCreated: (controller) {
+      body: MapboxView(
+        onMapCreated: (MapboxMap controller) {
           mapController = controller;
+          // e.g. if you want, load a different style later:
+          // mapController!.loadStyleURI(StyleURI.SATELLITE);
         },
-        initialCameraPosition: CameraPosition(
-          target: _initialPosition,
+        styleUri: "mapbox://styles/mapbox/streets-v11",
+        cameraOptions: CameraOptions(
+          center: Point(coordinates: Position(29.9187, 31.2001)),
           zoom: 12.0,
         ),
-        myLocationEnabled: true,
-        myLocationButtonEnabled: true,
-        zoomControlsEnabled: false,
       ),
     );
   }
 }
+

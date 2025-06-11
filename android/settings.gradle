@@ -1,14 +1,17 @@
+// android/settings.gradle
+
 pluginManagement {
+    // 1) Locate the Flutter engine’s own Gradle scripts
     def flutterSdkPath = {
         def properties = new Properties()
         file("local.properties").withInputStream { properties.load(it) }
-        def flutterSdkPath = properties.getProperty("flutter.sdk")
-        assert flutterSdkPath != null, "flutter.sdk not set in local.properties"
-        return flutterSdkPath
+        def flutterSdk = properties.getProperty("flutter.sdk")
+        assert flutterSdk != null, "flutter.sdk not set in local.properties"
+        return flutterSdk
     }()
-
     includeBuild("$flutterSdkPath/packages/flutter_tools/gradle")
 
+    // 2) Standard Gradle plugin repositories
     repositories {
         google()
         mavenCentral()
@@ -22,4 +25,5 @@ plugins {
     id "org.jetbrains.kotlin.android" version "1.8.22" apply false
 }
 
+// 3) Only “:app” needs to be included here
 include ":app"

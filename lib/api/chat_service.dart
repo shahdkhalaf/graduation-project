@@ -18,59 +18,41 @@ class _ChatAssistScreenState extends State<ChatAssistScreen> {
   final TextEditingController _controller = TextEditingController();
   bool _isSending = false;
 
-  // ── Change this to your actual Ngrok URL ──
-  static const String _chatbotBaseUrl = "https://0747-156-212-129-222.ngrok-free.app";
-  // Our Flask endpoint is /api/query
-  static const String _chatPath = "/api/query";
+  // New chatbot endpoint
+  static const String _chatbotUrl = "http://74.162.120.214:5000/api/query";
 
   Future<void> _sendMessage() async {
     final text = _controller.text.trim();
     if (text.isEmpty) return;
 
     setState(() {
-      // 1) Show the user's bubble immediately:
       _messages.add(ChatMessage(text: text, isUser: true));
       _isSending = true;
       _controller.clear();
     });
 
     try {
-      final uri = Uri.parse("$_chatbotBaseUrl$_chatPath");
-      final payload = {
-        "question": text, // Flask expects "question"
-      };
-
-      print("📤 Sending POST to $uri");
-      print("📝 Payload: ${jsonEncode(payload)}");
-
       final response = await http.post(
-        uri,
+        Uri.parse(_chatbotUrl),
         headers: {"Content-Type": "application/json"},
-        body: jsonEncode(payload),
+        body: jsonEncode({"question": text}),
       );
-
-      print("📥 Status Code: ${response.statusCode}");
-      print("📥 Response Body: ${response.body}");
 
       if (response.statusCode == 200) {
         final bodyJson = jsonDecode(response.body) as Map<String, dynamic>;
-        final botReply = (bodyJson["answer"] ?? "Sorry, I didn’t get a reply.").toString();
-
+        final botReply = (bodyJson["answer"] ?? "Sorry, I didn't get a reply.").toString();
         setState(() {
           _messages.add(ChatMessage(text: botReply, isUser: false));
         });
       } else {
-        // 404 or other non‐200
         setState(() {
           _messages.add(ChatMessage(
-            text:
-            "Sorry, I couldn’t reach the chatbot (status ${response.statusCode}).",
+            text: "Sorry, I couldn't reach the chatbot (status ${response.statusCode}).",
             isUser: false,
           ));
         });
       }
     } catch (e) {
-      print("❌ Exception while calling chatbot: $e");
       setState(() {
         _messages.add(ChatMessage(
           text: "Oops, something went wrong. Please try again later.",
@@ -117,24 +99,22 @@ class _ChatAssistScreenState extends State<ChatAssistScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // ── Chat bubbles ──
+            // Chat bubbles
             Expanded(
               child: ListView.builder(
-                padding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                 itemCount: _messages.length,
                 itemBuilder: (context, index) {
                   final msg = _messages[index];
                   return Align(
-                    alignment:
-                    msg.isUser ? Alignment.centerRight : Alignment.centerLeft,
+                    alignment: msg.isUser ? Alignment.centerRight : Alignment.centerLeft,
                     child: _buildChatBubble(msg),
                   );
                 },
               ),
             ),
 
-            // ── Quick suggestions ──
+            // Quick suggestions
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Row(
@@ -147,11 +127,10 @@ class _ChatAssistScreenState extends State<ChatAssistScreen> {
             ),
             const SizedBox(height: 16),
 
-            // ── Input field + Send button ──
+            // Input field + Send button
             Container(
               color: Colors.white,
-              padding:
-              const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: Row(
                 children: [
                   Expanded(
@@ -171,9 +150,7 @@ class _ChatAssistScreenState extends State<ChatAssistScreen> {
                     onTap: _isSending ? null : _sendMessage,
                     child: CircleAvatar(
                       radius: 24,
-                      backgroundColor: _isSending
-                          ? Colors.grey.shade300
-                          : const Color(0xFF175579),
+                      backgroundColor: _isSending ? Colors.grey.shade300 : const Color(0xFF175579),
                       child: Icon(
                         _isSending ? Icons.hourglass_empty : Icons.send,
                         color: _isSending ? Colors.grey : Colors.white,
@@ -190,10 +167,8 @@ class _ChatAssistScreenState extends State<ChatAssistScreen> {
   }
 
   Widget _buildChatBubble(ChatMessage msg) {
-    final bubbleColor =
-    msg.isUser ? const Color(0xFF175579) : Colors.grey.shade200;
+    final bubbleColor = msg.isUser ? const Color(0xFF175579) : Colors.grey.shade200;
     final textColor = msg.isUser ? Colors.white : Colors.black;
-
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 4),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -202,10 +177,7 @@ class _ChatAssistScreenState extends State<ChatAssistScreen> {
         color: bubbleColor,
         borderRadius: BorderRadius.circular(16),
       ),
-      child: Text(
-        msg.text,
-        style: TextStyle(color: textColor),
-      ),
+      child: Text(msg.text, style: TextStyle(color: textColor)),
     );
   }
 
@@ -213,14 +185,9 @@ class _ChatAssistScreenState extends State<ChatAssistScreen> {
     return OutlinedButton(
       style: OutlinedButton.styleFrom(
         side: BorderSide(color: Colors.grey.shade300),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       ),
-      onPressed: () {
-        // Pre‐fill the input field with the suggestion
-        _controller.text = label;
-      },
+      onPressed: () => _controller.text = label,
       child: Text(label, style: const TextStyle(color: Colors.black)),
     );
   }

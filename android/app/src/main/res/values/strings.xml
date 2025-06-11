@@ -1,0 +1,7 @@
+<resources>
+    …
+    <!-- ← this is what Mapbox’s Android SDK will look for: -->
+    <string name="mapbox_access_token">
+    pk.eyJ1IjoiaWhhZGl3bWljdCIsImEiOiJjbWJqMm9vYTgwYm5kMmlyMWEyNDh5MmYyIn0.MMoxVJcxIh23nh9G9KIaew
+  </string>
+</resources>
