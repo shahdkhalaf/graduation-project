@@ -50,7 +50,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     final Map<String, List<String>> disconnectedAreas = {
       "الكيلو 21": ["الكيلو 21", "الهانوفيل", "البيطاش"],
-      "الهانوفيل": ["الكيلو 21", "الهانوفيل", "البيطاش"],
+      "الهانوفيل": ["الكيلو 21", "الهانوفيل", "الالبيطاش"],
       "البيطاش": ["الكيلو 21", "الهانوفيل", "البيطاش"],
     };
 
@@ -136,8 +136,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
         return Dialog(
           backgroundColor: Colors.white,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          insetPadding: const EdgeInsets.symmetric(horizontal: 25, vertical: 100),
+          shape:
+          RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          insetPadding:
+          const EdgeInsets.symmetric(horizontal: 25, vertical: 100),
           child: Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
@@ -178,10 +180,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     border: OutlineInputBorder(),
                     filled: true,
                     fillColor: Colors.white,
-                    contentPadding: EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 12,
-                    ),
+                    contentPadding:
+                    EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   ),
                   onChanged: (value) => userId = value,
                 ),
@@ -234,10 +234,10 @@ class _HomeScreenState extends State<HomeScreen> {
       builder: (BuildContext context) {
         return Dialog(
           backgroundColor: Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          insetPadding: const EdgeInsets.symmetric(horizontal: 25, vertical: 150),
+          shape:
+          RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          insetPadding:
+          const EdgeInsets.symmetric(horizontal: 25, vertical: 150),
           child: Padding(
             padding: const EdgeInsets.all(20),
             child: Stack(
@@ -288,10 +288,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 Positioned(
                   top: 0,
                   right: 0,
-                  child: GestureDetector(
-                    onTap: () => Navigator.of(context).pop(),
-                    child: const Icon(Icons.close, color: Colors.black54),
-                  ),
+                  child:
+                  GestureDetector(onTap: () => Navigator.of(context).pop(), child: const Icon(Icons.close, color: Colors.black54)),
                 ),
               ],
             ),
@@ -313,10 +311,10 @@ class _HomeScreenState extends State<HomeScreen> {
       builder: (BuildContext context) {
         return Dialog(
           backgroundColor: Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          insetPadding: const EdgeInsets.symmetric(horizontal: 25, vertical: 150),
+          shape:
+          RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          insetPadding:
+          const EdgeInsets.symmetric(horizontal: 25, vertical: 150),
           child: Stack(
             children: [
               Padding(
@@ -387,10 +385,8 @@ class _HomeScreenState extends State<HomeScreen> {
               Positioned(
                 top: 10,
                 right: 10,
-                child: GestureDetector(
-                  onTap: () => Navigator.of(context).pop(),
-                  child: const Icon(Icons.close, color: Colors.black54),
-                ),
+                child:
+                GestureDetector(onTap: () => Navigator.of(context).pop(), child: const Icon(Icons.close, color: Colors.black54)),
               ),
             ],
           ),
@@ -415,8 +411,10 @@ class _HomeScreenState extends State<HomeScreen> {
       context: context,
       builder: (BuildContext context) {
         return Dialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 100),
+          shape:
+          RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          insetPadding:
+          const EdgeInsets.symmetric(horizontal: 20, vertical: 100),
           child: Container(
             padding: const EdgeInsets.all(20),
             child: Column(
@@ -428,7 +426,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   children: [
                     const Text(
                       "Your Route",
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      style:
+                      TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                     ),
                     GestureDetector(
                       onTap: () => Navigator.pop(context),
@@ -477,8 +476,10 @@ class _HomeScreenState extends State<HomeScreen> {
                     onPressed: () => Navigator.pop(context),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF175579),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-                      padding: const EdgeInsets.symmetric(vertical: 14.0, horizontal: 40.0),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(30)),
+                      padding: const EdgeInsets.symmetric(
+                          vertical: 14.0, horizontal: 40.0),
                     ),
                     child: const Text(
                       "Confirm Route",
@@ -555,189 +556,197 @@ class _HomeScreenState extends State<HomeScreen> {
       key: _scaffoldKey,
       drawer: _buildDrawer(),
 
-      body: Stack(
-        children: [
-          // ──► 1) Fill the entire background with MapboxView:
-          Positioned.fill(
-            child: MapboxView(
-              onMapCreated: _onMapCreated,
-              styleUri: "mapbox://styles/mapbox/streets-v11",
-              cameraOptions: CameraOptions(
-                center: Point(coordinates: Position(29.9187, 31.2001)),
-                zoom: 13.0,
-              ),
-            ),
-          ),
+      // ← prevents the map from resizing/scrolling when the keyboard appears
+      resizeToAvoidBottomInset: false,
 
-          // ──► 2) The menu button in top-left:
-          Positioned(
-            top: 40,
-            left: 20,
-            child: GestureDetector(
-              onTap: () => _scaffoldKey.currentState?.openDrawer(),
-              child: Container(
-                width: 48,
-                height: 48,
-                decoration: const BoxDecoration(
-                  color: Color(0xFF175579),
-                  shape: BoxShape.circle,
-                ),
-                child: Center(
-                  child: SizedBox(
-                    width: 37,
-                    height: 37,
-                    child: Image.asset(
-                      'assets/img_1.png',
-                      fit: BoxFit.contain,
-                    ),
-                  ),
+      body: MediaQuery.removePadding(
+        context: context,
+        removeTop: true,
+        removeBottom: true,
+        child: Stack(
+          children: [
+            // 1) Truly fill the entire screen with MapboxView:
+            Positioned.fill(
+              child: MapboxView(
+                onMapCreated: _onMapCreated,
+                styleUri: "mapbox://styles/mapbox/streets-v11",
+                cameraOptions: CameraOptions(
+                  center: Point(coordinates: Position(29.9187, 31.2001)),
+                  zoom: 13.0,
                 ),
               ),
             ),
-          ),
 
-          // ──► 3) If live‐tracking is active, show “STOP SHARING” + sample circles:
-          if (isTracking) ...[
+            // 2) Menu button in top-left:
             Positioned(
               top: 40,
-              left: 78,
-              right: 17,
-              child: ElevatedButton(
-                onPressed: _stopSharing,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF175579),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                ),
-                child: const Text(
-                  "STOP SHARING",
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
+              left: 20,
+              child: GestureDetector(
+                onTap: () => _scaffoldKey.currentState?.openDrawer(),
+                child: Container(
+                  width: 48,
+                  height: 48,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFF175579),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Center(
+                    child: SizedBox(
+                      width: 37,
+                      height: 37,
+                      child: Image.asset(
+                        'assets/img_1.png',
+                        fit: BoxFit.contain,
+                      ),
+                    ),
                   ),
                 ),
               ),
             ),
 
-            // Example circle for tracked users:
-            Positioned(
-              left: 100,
-              top: 150,
-              child: Container(
-                width: 113,
-                height: 113,
-                decoration: BoxDecoration(
-                  color: Colors.blue.withOpacity(0.2),
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.blue.withOpacity(0.3),
-                      blurRadius: 15,
-                      spreadRadius: 5,
+            // 3) Live‐tracking overlay if active:
+            if (isTracking) ...[
+              Positioned(
+                top: 40,
+                left: 78,
+                right: 17,
+                child: ElevatedButton(
+                  onPressed: _stopSharing,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF175579),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                  child: const Text(
+                    "STOP SHARING",
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
                     ),
-                  ],
-                ),
-                child: const Center(
-                  child: Icon(Icons.location_on, color: Colors.blue, size: 30),
+                  ),
                 ),
               ),
-            ),
 
-            Positioned(
-              left: 250,
-              top: 400,
+              // Example circles for map markers:
+              Positioned(
+                left: 100,
+                top: 150,
+                child: Container(
+                  width: 113,
+                  height: 113,
+                  decoration: BoxDecoration(
+                    color: Colors.blue.withOpacity(0.2),
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.blue.withOpacity(0.3),
+                        blurRadius: 15,
+                        spreadRadius: 5,
+                      ),
+                    ],
+                  ),
+                  child: const Center(
+                    child: Icon(Icons.location_on, color: Colors.blue, size: 30),
+                  ),
+                ),
+              ),
+
+              Positioned(
+                left: 250,
+                top: 400,
+                child: Container(
+                  width: 113,
+                  height: 113,
+                  decoration: BoxDecoration(
+                    color: Colors.red.withOpacity(0.2),
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.red.withOpacity(0.3),
+                        blurRadius: 15,
+                        spreadRadius: 5,
+                      ),
+                    ],
+                  ),
+                  child: const Center(
+                    child: Icon(Icons.location_on, color: Colors.red, size: 30),
+                  ),
+                ),
+              ),
+            ],
+
+            // 4) Bottom panel with “GO” button & selectors:
+            Align(
+              alignment: Alignment.bottomCenter,
               child: Container(
-                width: 113,
-                height: 113,
-                decoration: BoxDecoration(
-                  color: Colors.red.withOpacity(0.2),
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.red.withOpacity(0.3),
-                      blurRadius: 15,
-                      spreadRadius: 5,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 27),
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                  boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 10)],
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        SizedBox(
+                          height: 120,
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Icon(Icons.my_location, color: Colors.blue),
+                              _buildDashedLine(),
+                              const Icon(Icons.location_on, color: Colors.red),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              GestureDetector(
+                                onTap: () => _selectLocation(true),
+                                child: _buildLocationRow("STARTING POINT", startingPoint),
+                              ),
+                              const SizedBox(height: 12),
+                              Divider(color: Colors.grey.shade300, thickness: 1),
+                              const SizedBox(height: 12),
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Expanded(
+                                    child: GestureDetector(
+                                      onTap: () => _selectLocation(false),
+                                      child: _buildLocationRow("ENDING POINT", destination),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 16),
+                                  SizedBox(
+                                    width: 80,
+                                    height: 50,
+                                    child: buildGoButton(
+                                      context: context,
+                                      startingPoint: startingPoint,
+                                      destination: destination,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
                   ],
-                ),
-                child: const Center(
-                  child: Icon(Icons.location_on, color: Colors.red, size: 30),
                 ),
               ),
             ),
           ],
-
-          // ──► 4) Bottom panel with “GO” button and location selection:
-          Align(
-            alignment: Alignment.bottomCenter,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 27),
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-                boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 10)],
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      SizedBox(
-                        height: 120,
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            const Icon(Icons.my_location, color: Colors.blue),
-                            _buildDashedLine(),
-                            const Icon(Icons.location_on, color: Colors.red),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            GestureDetector(
-                              onTap: () => _selectLocation(true),
-                              child: _buildLocationRow("STARTING POINT", startingPoint),
-                            ),
-                            const SizedBox(height: 12),
-                            Divider(color: Colors.grey.shade300, thickness: 1),
-                            const SizedBox(height: 12),
-                            Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Expanded(
-                                  child: GestureDetector(
-                                    onTap: () => _selectLocation(false),
-                                    child: _buildLocationRow("ENDING POINT", destination),
-                                  ),
-                                ),
-                                const SizedBox(width: 16),
-                                SizedBox(
-                                  width: 80,
-                                  height: 50,
-                                  child: buildGoButton(
-                                    context: context,
-                                    startingPoint: startingPoint,
-                                    destination: destination,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
