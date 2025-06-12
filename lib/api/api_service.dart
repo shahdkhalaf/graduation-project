@@ -8,7 +8,7 @@ class ApiService {
       "https://reg-model-deffhegbbac0anfx.switzerlandnorth-01.azurewebsites.net";
 
   // (OCR endpoint here)
-  static const String ocrEndpoint = "'http://4.182.248.150:5000/ocr";
+  static const String ocrEndpoint = "http://4.182.248.150:5000/ocr";
 
   /// ⏳ Waiting Time Prediction
   /// Returns the first element of "Q50_prediction" as a String, or null on failure.
@@ -64,33 +64,37 @@ class ApiService {
   }
 
   /// 🔍 OCR Text Extraction (unchanged)
-  static Future<String?> extractTextFromImage(String base64Image) async {
+
+  /// 🔍 OCR Text Extraction via multipart/form-data
+  /// Expects JSON of the form:
+  /// {
+  ///   "detected_text": ["line1", "line2", …]
+  /// }
+  /// Posts the image file itself (not Base64) under the `image` field,
+  /// parses the `"detected_text"` array, and returns it joined with spaces.
+  static Future<String?> extractTextFromImage(String imagePath) async {
     final uri = Uri.parse(ocrEndpoint);
-    final payload = {"image": base64Image};
+    final request = http.MultipartRequest('POST', uri)
+      ..files.add(await http.MultipartFile.fromPath('image', imagePath));
 
-    print("📤 Sending OCR POST to $uri");
-    print("📝 OCR Body: ${jsonEncode(payload)}");
+    print("📤 OCR multipart POST → $uri");
+    print("    imagePath: $imagePath");
 
-    try {
-      final response = await http.post(
-        uri,
-        headers: {"Content-Type": "application/json"},
-        body: jsonEncode(payload),
-      );
+    final streamed = await request.send();
+    final response = await http.Response.fromStream(streamed);
 
-      print("📥 OCR Status Code: ${response.statusCode}");
-      print("📥 OCR Response Body: ${response.body}");
+    print("📥 OCR status: ${response.statusCode}");
+    print("📥 OCR body:   ${response.body}");
 
-      if (response.statusCode == 200) {
-        final result = jsonDecode(response.body);
-        return result["text"];
-      } else {
-        return null;
+    if (response.statusCode == 200) {
+      final Map<String, dynamic> map = jsonDecode(response.body);
+      final List<dynamic>? lines = map['detected_text'] as List<dynamic>?;
+      if (lines != null && lines.isNotEmpty) {
+        // join all lines into a single string
+        return lines.map((e) => e.toString()).join(' ');
       }
-    } catch (e) {
-      print("❌ OCR Exception: $e");
-      return null;
     }
+    return null;
   }
 }
 
