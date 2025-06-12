@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import 'package:shared_preferences/shared_preferences.dart';import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 
+import 'AccountScreen.dart';
 import 'mapbox_view.dart';         // our helper widget
 import 'api/api_service.dart';     // if you still need it
 import 'components/go_button.dart';// your existing “GO” button
@@ -803,6 +804,10 @@ class _HomeScreenState extends State<HomeScreen> {
             _buildDrawerButton(Icons.account_circle, "Account", () {
               Navigator.pop(context);
               // Navigate to Account Screen
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const AccountScreen()),
+              );
             }),
 
             const Spacer(), // يخلي الزرار اللي تحت دايما تحت
