@@ -1,5 +1,5 @@
 import 'dart:convert';
-
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
@@ -27,17 +27,24 @@ class _AccountScreenState extends State<AccountScreen> {
 
   Future<void> _fetchUserData() async {
     try {
+      final prefs = await SharedPreferences.getInstance();
+      final savedEmail = prefs.getString('user_email') ?? '';
+
+      if (savedEmail.isEmpty) {
+        print('No saved email found!');
+        return;
+      }
+
       final response = await http.post(
         Uri.parse('https://graduation-project-production-39f0.up.railway.app/get_user'),
-        headers: {"Content-Type": "application/json"},
-        body: jsonEncode({"email": "mohamed.mahmoud.elgazzar@gmail.com"}),
+        body: {
+          "email": savedEmail,
+        },
       );
-
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         print('Full Response Body: ${response.body}');
-        print('Response Headers: ${response.headers}');
         if (data['success'] == true) {
           final user = data['user'];
 
@@ -46,7 +53,7 @@ class _AccountScreenState extends State<AccountScreen> {
             lastName = user['last_name'] ?? '';
             email = user['email'] ?? '';
             age = user['age']?.toString() ?? '';
-            gender = user['gendar'] ?? ''; // خد بالك هنا الكولمن اسمه gendar في db
+            gender = user['gendar'] ?? '';
             district = user['district'] ?? '';
           });
         } else {

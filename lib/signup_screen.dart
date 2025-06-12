@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'congratulations_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({Key? key}) : super(key: key);
@@ -87,6 +88,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
       if (response.statusCode == 201) {
         // Success → navigate to CongratulationsScreen
         setState(() => _isLoading = false);
+        final prefs = await SharedPreferences.getInstance();
+        prefs.setString('user_email', _emailController.text.trim());
+
         Navigator.push(
           context,
           MaterialPageRoute(builder: (context) => const CongratulationsScreen()),
