@@ -770,68 +770,116 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildDrawer() {
     return Drawer(
-      child: Column(
-        children: [
-          Expanded(
-            child: ListView(
+      child: Container(
+        color: const Color(0xFF175579), // خلفية زرقاء
+        child: Column(
+          children: [
+            const SizedBox(height: 60), // مسافة فوق
+            Image.asset(
+              'assets/salkah.png',
+              width: 200,
+              height: 80,
+              fit: BoxFit.contain, // لضبط الصورة
+            ),
+            const SizedBox(height: 20),
+
+            _buildDrawerButton(Icons.home, "Home", () {
+              Navigator.pop(context);
+              // Navigate to Home (لو عندك Home Screen — هنا تحط النفيجيشن بتاعها)
+            }),
+
+            _buildDrawerButton(Icons.report, "Make a Complaint", () {
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const MakeComplaintScreen()),
+              );
+            }),
+
+            _buildDrawerButton(Icons.person_pin_circle, "Live Tracking", () {
+              Navigator.pop(context);
+              _showLiveTrackingDialog();
+            }),
+
+            _buildDrawerButton(Icons.business, "Salkah Assets", () {
+              Navigator.pop(context);
+              // Navigate to Assets Screen
+            }),
+
+            _buildDrawerButton(Icons.account_circle, "Account", () {
+              Navigator.pop(context);
+              // Navigate to Account Screen
+            }),
+
+            const Spacer(), // يخلي الزرار اللي تحت دايما تحت
+
+        Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF3E6E8C),
+                foregroundColor: const Color(0xFFFFFFFF),
+                padding: const EdgeInsets.symmetric(vertical: 20),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              onPressed: () async {
+                final prefs = await SharedPreferences.getInstance();
+                await prefs.clear();
+                Navigator.pushReplacementNamed(context, '/signin');
+              },
+              child: Padding(
+                padding: const EdgeInsetsDirectional.only(start: 12), // مسافة من الحافة
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.start,
+                  children: const [
+                    Icon(Icons.logout),
+                    SizedBox(width: 12),
+                    Text("Logout", style: TextStyle(fontSize: 16)),
+                  ],
+                ),
+              ),
+              ),
+            ),
+        )],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDrawerButton(IconData icon, String text, VoidCallback onTap) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+      child: SizedBox(
+        width: double.infinity,
+        child: ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFF3E6E8C), // الأزرق الفاتح
+            foregroundColor: const Color(0xFFFFFFFF),
+            padding: const EdgeInsets.symmetric(vertical: 20),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+          onPressed: onTap,
+          child: Padding(
+            padding: const EdgeInsets.only(left: 12), // مسافة من اليسار (أو من اليمين لو RTL)
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.start,
               children: [
-                DrawerHeader(
-                  decoration: const BoxDecoration(color: Color(0xFF175579)),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      Image.asset('assets/salkah.png', width: 250, height: 80),
-                      const SizedBox(width: 10),
-                    ],
-                  ),
-                ),
-                ListTile(
-                  leading: const Icon(Icons.report),
-                  title: const Text("Make a complaint"),
-                  onTap: () {
-                    Navigator.pop(context);
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const MakeComplaintScreen()),
-                    );
-                  },
-                ),
-                ListTile(
-                  leading: const Icon(Icons.chat),
-                  title: const Text("Chat Assist"),
-                  onTap: () {
-                    Navigator.pop(context);
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const ChatAssistScreen()),
-                    );
-                  },
-                ),
-                ListTile(
-                  leading: const Icon(Icons.person_pin_circle),
-                  title: const Text("Live Tracking"),
-                  onTap: () {
-                    Navigator.pop(context);
-                    _showLiveTrackingDialog();
-                  },
+                Icon(icon),
+                const SizedBox(width: 12),
+                Text(
+                  text,
+                  style: const TextStyle(fontSize: 16),
                 ),
               ],
             ),
           ),
-          Divider(),
-          ListTile(
-            leading: Icon(Icons.logout),
-            title: Text('Log out'),
-            onTap: () async {
-              final prefs = await SharedPreferences.getInstance();
-              await prefs.clear(); // Clear session/token
-              Navigator.pushReplacementNamed(
-                  context, '/signin'); // Adjust route if needed
-            },
-          ),
-        ],
+        ),
       ),
     );
   }
