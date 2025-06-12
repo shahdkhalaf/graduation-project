@@ -138,16 +138,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
         return Dialog(
           backgroundColor: Colors.white,
-          shape:
-          RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          insetPadding:
-          const EdgeInsets.symmetric(horizontal: 25, vertical: 100),
-          child: Container(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          insetPadding: const EdgeInsets.symmetric(horizontal: 25, vertical: 20),
+          child: SingleChildScrollView(
             padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
-            ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -194,8 +188,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     onPressed: () {
                       if (userId.isEmpty) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text(
-                              "Please enter a User ID")),
+                          const SnackBar(content: Text("Please enter a User ID")),
                         );
                         return;
                       }
@@ -222,6 +215,7 @@ class _HomeScreenState extends State<HomeScreen> {
       },
     );
   }
+
 
   Future<void> _startLiveTracking(String userId) async {
     _showWaitingDialog(userId);
@@ -821,7 +815,7 @@ class _HomeScreenState extends State<HomeScreen> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF3E6E8C),
                 foregroundColor: const Color(0xFFFFFFFF),
-                padding: const EdgeInsets.symmetric(vertical: 20),
+                padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10),
                 ),
@@ -832,7 +826,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 Navigator.pushReplacementNamed(context, '/signin');
               },
               child: Padding(
-                padding: const EdgeInsetsDirectional.only(start: 12), // مسافة من الحافة
+                padding: const EdgeInsetsDirectional.only(start: 55), // مسافة من الحافة
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.start,
                   children: const [
