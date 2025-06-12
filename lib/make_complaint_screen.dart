@@ -90,15 +90,17 @@ class _MakeComplaintScreenState extends State<MakeComplaintScreen> {
               ),
               const SizedBox(height: 24),
               ElevatedButton(
-                onPressed: () => Navigator.pop(context),
+                onPressed: () {
+                  Navigator.pushNamedAndRemoveUntil(context, '/home', (Route<dynamic> route) => false);
+                },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF175579),
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(30)),
                   padding:
-                  const EdgeInsets.symmetric(vertical: 12, horizontal: 120),
+                  const EdgeInsets.symmetric(vertical: 12, horizontal: 24),
                 ),
-                child: const Text("OK",
+                child: const Text("Go Back to Home Screen",
                     style: TextStyle(color: Colors.white, fontSize: 16)),
               ),
             ],
