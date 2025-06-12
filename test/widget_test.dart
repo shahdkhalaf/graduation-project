@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 // Import your sign_in_screen.dart instead of main.dart if that's where the widget is
-import 'package:graduation_project/main.dart';
+import 'package:Salkah/main.dart';
 
 void main() {
   testWidgets('Counter increments smoke test', (WidgetTester tester) async {
