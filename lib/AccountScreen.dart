@@ -28,14 +28,16 @@ class _AccountScreenState extends State<AccountScreen> {
   Future<void> _fetchUserData() async {
     try {
       final response = await http.post(
-        Uri.parse('https://graduation-project-production-39f0.up.railway.app/get_user'), // ← حط هنا لينك السيرفر بتاعك
-        body: {
-          "email": "mohamed.mahmoud.elgazzar@gmail.com", // هنا حط Email اليوزر (ممكن تجيبه من SharedPreferences بعدين)
-        },
+        Uri.parse('https://graduation-project-production-39f0.up.railway.app/get_user'),
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({"email": "mohamed.mahmoud.elgazzar@gmail.com"}),
       );
+
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
+        print('Full Response Body: ${response.body}');
+        print('Response Headers: ${response.headers}');
         if (data['success'] == true) {
           final user = data['user'];
 
@@ -69,6 +71,7 @@ class _AccountScreenState extends State<AccountScreen> {
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
+        child: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -81,7 +84,7 @@ class _AccountScreenState extends State<AccountScreen> {
           ],
         ),
       ),
-    );
+    ));
   }
 
   Widget _buildAccountRow(String label, String value) {
