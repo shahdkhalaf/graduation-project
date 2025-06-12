@@ -33,7 +33,7 @@ class _ChatAssistScreenState extends State<ChatAssistScreen> {
 
     try {
       // builds: https://4001-156-212-124-122.ngrok-free.app/api/query
-      final uri = Uri.parse("$_chatbotBaseUrl$_chatPath");
+      final uri = Uri.parse(_chatbotBaseUrl);
       final payload = {"question": text};
 
       print("📤 Sending POST to $uri");
