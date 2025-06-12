@@ -38,6 +38,7 @@ dependencies:
 
   # Use a 0.14.x version of mapbox_maps_flutter, NOT 0.15+
   mapbox_maps_flutter: ^2.8.0
+  location: ^4.4.0
 
   # Geolocator remains the same
   geolocator: ^9.0.2

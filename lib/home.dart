@@ -1,13 +1,12 @@
-// lib/home.dart
-
 import 'package:flutter/material.dart';
-
-import 'package:shared_preferences/shared_preferences.dart';import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
+import 'package:location/location.dart';
 
 import 'AccountScreen.dart';
 import 'mapbox_view.dart';         // our helper widget
 import 'api/api_service.dart';     // if you still need it
-import 'components/go_button.dart';// your existing “GO” button
+import 'components/go_button.dart'; // updated GO button
 import 'chat.dart';
 import 'make_complaint_screen.dart';
 
@@ -24,30 +23,58 @@ class _HomeScreenState extends State<HomeScreen> {
   String startingPoint = "My current location";
   String destination = "My Destination";
 
-  bool isTracking = false; // Live‐tracking flag
-  String? trackingUserId; // ID being tracked
+  bool isTracking = false;   // Live‐tracking flag
+  String? trackingUserId;    // ID being tracked
 
-  MapboxMap? mapboxMap; // Store controller once map is ready
+  MapboxMap? mapboxMap;      // Map controller
+  Location _location = Location(); // Location plugin
+  Point? userLocation;       // Latest user location
+
+  @override
+  void initState() {
+    super.initState();
+    _initLocationListener();
+  }
+
+  Future<void> _initLocationListener() async {
+    // 1) Ensure service & permission
+    if (!await _location.serviceEnabled()) {
+      if (!await _location.requestService()) return;
+    }
+    if (await _location.hasPermission() == PermissionStatus.denied) {
+      if (await _location.requestPermission() != PermissionStatus.granted) {
+        return;
+      }
+    }
+
+    // 2) Listen to location updates
+    _location.onLocationChanged.listen((data) {
+      if (data.latitude == null || data.longitude == null) return;
+      final lat = data.latitude!;
+      final lng = data.longitude!;
+      setState(() {
+        userLocation = Point(coordinates: Position(lng, lat));
+        startingPoint = "${lat.toStringAsFixed(5)}, ${lng.toStringAsFixed(5)}";
+      });
+    });
+  }
 
   void _onMapCreated(MapboxMap controller) {
     mapboxMap = controller;
-    // You can manipulate camera or add annotations here if needed.
+    // Enable the Mapbox user-location puck:
+    controller.location.updateSettings(
+      LocationComponentSettings(
+        enabled: true,
+        pulsingEnabled: false,
+      ),
+    );
   }
 
   // ===================== Location Selection =====================
   void _selectLocation(bool isStartingPoint) async {
     final List<String> places = [
-      "الكيلو 21",
-      "الهانوفيل",
-      "البيطاش",
-      "المحطة",
-      "المنشية",
-      "الموقف",
-      "سموحة",
-      "محطة الرمل",
-      "الشاطبي",
-      "العوايد",
-      "العصافرة 45"
+      "الكيلو 21", "الهانوفيل", "البيطاش", "المحطة", "المنشية",
+      "الموقف", "سموحة", "محطة الرمل", "الشاطبي", "العوايد", "العصافرة 45"
     ];
 
     final Map<String, List<String>> disconnectedAreas = {
@@ -57,62 +84,38 @@ class _HomeScreenState extends State<HomeScreen> {
     };
 
     final List<String> urbanAreas = [
-      "المحطة",
-      "المنشية",
-      "الموقف",
-      "سموحة",
-      "محطة الرمل",
-      "الشاطبي",
-      "العوايد",
-      "العصافرة 45"
+      "المحطة", "المنشية", "الموقف", "سموحة", "محطة الرمل",
+      "الشاطبي", "العوايد", "العصافرة 45"
     ];
 
-    String currentLocation = isStartingPoint ? startingPoint : destination;
-    String otherLocation = isStartingPoint ? destination : startingPoint;
-
-    List<String> availableLocations = places.where((location) {
-      if (location == currentLocation) return false;
-
+    String current = isStartingPoint ? startingPoint : destination;
+    List<String> available = places.where((loc) {
+      if (loc == current) return false;
       if (!isStartingPoint) {
-        // If selecting “ending point,” apply disconnected‐areas logic:
         if (urbanAreas.contains(startingPoint)) {
-          if (!disconnectedAreas["الكيلو 21"]!.contains(location)) {
+          if (!disconnectedAreas["الكيلو 21"]!.contains(loc)) return false;
+        } else {
+          if (disconnectedAreas.containsKey(startingPoint) &&
+              disconnectedAreas[startingPoint]!.contains(loc)) {
             return false;
           }
-        } else {
-          if (disconnectedAreas.containsKey(startingPoint)) {
-            if (disconnectedAreas[startingPoint]!.contains(location)) {
-              return false;
-            }
-          }
         }
-
-        if (location == startingPoint) return false;
       }
-
-      if (isStartingPoint) {
-        if (location == destination) return false;
-      }
-
+      if (isStartingPoint && loc == destination) return false;
       return true;
     }).toList();
 
-    String? selected = await showModalBottomSheet<String>(
+    final selected = await showModalBottomSheet<String>(
       context: context,
-      builder: (BuildContext context) {
-        return Container(
-          padding: const EdgeInsets.all(16),
-          child: ListView(
-            children: availableLocations
-                .map((place) =>
-                ListTile(
-                  title: Text(place),
-                  onTap: () => Navigator.pop(context, place),
-                ))
-                .toList(),
-          ),
-        );
-      },
+      builder: (_) => Container(
+        padding: const EdgeInsets.all(16),
+        child: ListView(
+          children: available.map((place) => ListTile(
+            title: Text(place),
+            onTap: () => Navigator.pop(context, place),
+          )).toList(),
+        ),
+      ),
     );
 
     if (selected != null) {
@@ -561,17 +564,14 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       key: _scaffoldKey,
       drawer: _buildDrawer(),
-
-      // ← prevents the map from resizing/scrolling when the keyboard appears
       resizeToAvoidBottomInset: false,
-
       body: MediaQuery.removePadding(
         context: context,
         removeTop: true,
         removeBottom: true,
         child: Stack(
           children: [
-            // 1) Truly fill the entire screen with MapboxView:
+            // Map
             Positioned.fill(
               child: MapboxView(
                 onMapCreated: _onMapCreated,
@@ -583,113 +583,11 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
 
-            // 2) Menu button in top-left:
-            Positioned(
-              top: 40,
-              left: 20,
-              child: GestureDetector(
-                onTap: () => _scaffoldKey.currentState?.openDrawer(),
-                child: Container(
-                  width: 48,
-                  height: 48,
-                  decoration: const BoxDecoration(
-                    color: Color(0xFF175579),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Center(
-                    child: SizedBox(
-                      width: 37,
-                      height: 37,
-                      child: Image.asset(
-                        'assets/img_1.png',
-                        fit: BoxFit.contain,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-
-            // 3) Live‐tracking overlay if active:
-            if (isTracking) ...[
-              Positioned(
-                top: 40,
-                left: 78,
-                right: 17,
-                child: ElevatedButton(
-                  onPressed: _stopSharing,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF175579),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(30)),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                  ),
-                  child: const Text(
-                    "STOP SHARING",
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ),
-
-              // Example circles for map markers:
-              Positioned(
-                left: 100,
-                top: 150,
-                child: Container(
-                  width: 113,
-                  height: 113,
-                  decoration: BoxDecoration(
-                    color: Colors.blue.withOpacity(0.2),
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.blue.withOpacity(0.3),
-                        blurRadius: 15,
-                        spreadRadius: 5,
-                      ),
-                    ],
-                  ),
-                  child: const Center(
-                    child: Icon(
-                        Icons.location_on, color: Colors.blue, size: 30),
-                  ),
-                ),
-              ),
-
-              Positioned(
-                left: 250,
-                top: 400,
-                child: Container(
-                  width: 113,
-                  height: 113,
-                  decoration: BoxDecoration(
-                    color: Colors.red.withOpacity(0.2),
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.red.withOpacity(0.3),
-                        blurRadius: 15,
-                        spreadRadius: 5,
-                      ),
-                    ],
-                  ),
-                  child: const Center(
-                    child: Icon(Icons.location_on, color: Colors.red, size: 30),
-                  ),
-                ),
-              ),
-            ],
-
-            // 4) Bottom panel with “GO” button & selectors:
+            // Bottom panel with GO button & selectors:
             Align(
               alignment: Alignment.bottomCenter,
               child: Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 16, vertical: 27),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 27),
                 decoration: const BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
@@ -723,8 +621,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                     "STARTING POINT", startingPoint),
                               ),
                               const SizedBox(height: 12),
-                              Divider(
-                                  color: Colors.grey.shade300, thickness: 1),
+                              Divider(color: Colors.grey.shade300, thickness: 1),
                               const SizedBox(height: 12),
                               Row(
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -744,6 +641,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                       context: context,
                                       startingPoint: startingPoint,
                                       destination: destination,
+                                      currentLocation: userLocation,
                                     ),
                                   ),
                                 ],
