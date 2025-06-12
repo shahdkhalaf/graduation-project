@@ -1,4 +1,4 @@
-// lib/chat.dart
+// lib/chat_service.dart
 
 import 'dart:convert';
 import 'package:flutter/material.dart';
@@ -19,7 +19,7 @@ class _ChatAssistScreenState extends State<ChatAssistScreen> {
   bool _isSending = false;
 
   // New chatbot endpoint
-  static const String _chatbotUrl = "http://74.162.120.214:5000/api/query";
+  static const String _chatbotUrl = "https://1aad-156-212-124-122.ngrok-free.app/api/query";
 
   Future<void> _sendMessage() async {
     final text = _controller.text.trim();
