@@ -84,7 +84,8 @@ class _ChatAssistScreenState extends State<ChatAssistScreen> {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        automaticallyImplyLeading: false,
+        automaticallyImplyLeading: true,
+        iconTheme: const IconThemeData(color: Colors.black),
         title: Row(
           children: [
             CircleAvatar(

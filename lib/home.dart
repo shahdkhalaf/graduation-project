@@ -778,10 +778,14 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             const SizedBox(height: 20),
 
-            _buildDrawerButton(Icons.home, "Home", () {
+            _buildDrawerButton(Icons.chat, "Chat Assist", () {
               Navigator.pop(context);
-              // Navigate to Home (لو عندك Home Screen — هنا تحط النفيجيشن بتاعها)
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const ChatAssistScreen()),
+              );
             }),
+
 
             _buildDrawerButton(Icons.report, "Make a Complaint", () {
               Navigator.pop(context);

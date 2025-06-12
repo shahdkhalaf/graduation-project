@@ -108,7 +108,8 @@ class _MakeComplaintScreenState extends State<MakeComplaintScreen> {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        automaticallyImplyLeading: false,
+        automaticallyImplyLeading: true,
+        iconTheme: const IconThemeData(color: Colors.black),
         title: Row(
           children: [
             CircleAvatar(

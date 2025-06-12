@@ -36,7 +36,8 @@ class _AccountScreenState extends State<AccountScreen> {
       }
 
       final response = await http.post(
-        Uri.parse('https://graduation-project-production-39f0.up.railway.app/get_user'),
+        Uri.parse(
+            'https://graduation-project-production-39f0.up.railway.app/get_user'),
         body: {
           "email": savedEmail,
         },
@@ -72,9 +73,39 @@ class _AccountScreenState extends State<AccountScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: const Color(0xFF175579),
-        title: const Text("My Account"),
+        backgroundColor: Colors.white,
+        elevation: 0,
+        automaticallyImplyLeading: true,
+        // لو عايز تخلي فيه Back button
+        iconTheme: const IconThemeData(color: Colors.black),
+        // يخلي أيقونة الـ back لونها اسود
+        title: Row(
+          children: [
+            CircleAvatar(
+              radius: 20,
+              backgroundColor: const Color(0xFF175579),
+              child: Image.asset(
+                'assets/img_1.png',
+                width: 32,
+                height: 32,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Text(
+              "My Account",
+              style: Theme
+                  .of(context)
+                  .textTheme
+                  .titleLarge
+                  ?.copyWith(
+                color: Colors.black,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
       ),
+      backgroundColor: Colors.white,
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: SingleChildScrollView(
@@ -90,7 +121,8 @@ class _AccountScreenState extends State<AccountScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Center(
-                    child: Icon(Icons.account_circle, size: 80, color: Color(0xFF175579)),
+                    child: Icon(Icons.account_circle, size: 80,
+                        color: Color(0xFF175579)),
                   ),
                   const SizedBox(height: 16),
                   Center(
