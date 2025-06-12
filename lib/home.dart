@@ -1,10 +1,18 @@
 // lib/home.dart
 
+import 'dart:async';
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:shared_preferences/shared_preferences.dart';import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
+// alias Geolocator
+import 'package:geolocator/geolocator.dart' as geolocator;
+// alias Mapbox SDK
+import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart' as mb;
 
-import 'mapbox_view.dart';         // our helper widget
+import 'mapbox_view.dart';         // your MapboxView wrapper
 import 'api/api_service.dart';     // if you still need it
 import 'components/go_button.dart';// your existing “GO” button
 import 'chat.dart';
@@ -12,7 +20,6 @@ import 'make_complaint_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
-
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
@@ -20,126 +27,165 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
+  // ─── State for your pickers & live tracking ────────────────────────────────
   String startingPoint = "My current location";
-  String destination = "My Destination";
+  String destination   = "My Destination";
+  bool   isTracking    = false;
+  String? trackingUserId;
 
-  bool isTracking = false; // Live‐tracking flag
-  String? trackingUserId; // ID being tracked
+  // ─── Mapbox + Annotations ─────────────────────────────────────────────────
+  mb.MapboxMap?              mapController;
+  mb.PointAnnotationManager? annotationManager;
+  mb.PointAnnotation?        userAnnotation;
 
-  MapboxMap? mapboxMap; // Store controller once map is ready
+  // ─── Geolocator stream ────────────────────────────────────────────────────
+  StreamSubscription<geolocator.Position>? _positionStream;
 
-  void _onMapCreated(MapboxMap controller) {
-    mapboxMap = controller;
-    // You can manipulate camera or add annotations here if needed.
+  @override
+  void initState() {
+    super.initState();
+    _startLocationUpdates();
   }
 
-  // ===================== Location Selection =====================
-  void _selectLocation(bool isStartingPoint) async {
-    final List<String> places = [
-      "الكيلو 21",
-      "الهانوفيل",
-      "البيطاش",
-      "المحطة",
-      "المنشية",
-      "الموقف",
-      "سموحة",
-      "محطة الرمل",
-      "الشاطبي",
-      "العوايد",
-      "العصافرة 45"
-    ];
+  @override
+  void dispose() {
+    _positionStream?.cancel();
+    super.dispose();
+  }
 
-    final Map<String, List<String>> disconnectedAreas = {
-      "الكيلو 21": ["الكيلو 21", "الهانوفيل", "البيطاش"],
-      "الهانوفيل": ["الكيلو 21", "الهانوفيل", "الالبيطاش"],
-      "البيطاش": ["الكيلو 21", "الهانوفيل", "البيطاش"],
+  /// Called by MapboxView once the map is ready
+  void _onMapCreated(mb.MapboxMap controller) async {
+    mapController = controller;
+    annotationManager =
+    await controller.annotations.createPointAnnotationManager();
+  }
+
+  /// Request permission and start streaming GPS updates
+  Future<void> _startLocationUpdates() async {
+    if (!await geolocator.Geolocator.isLocationServiceEnabled()) return;
+    var perm = await geolocator.Geolocator.checkPermission();
+    if (perm == geolocator.LocationPermission.denied) {
+      perm = await geolocator.Geolocator.requestPermission();
+      if (perm == geolocator.LocationPermission.denied) return;
+    }
+    if (perm == geolocator.LocationPermission.deniedForever) return;
+
+    _positionStream = geolocator.Geolocator.getPositionStream(
+      locationSettings: const geolocator.LocationSettings(
+        accuracy: geolocator.LocationAccuracy.best,
+        distanceFilter: 5,
+      ),
+    ).listen(_onNewPosition);
+  }
+
+  /// Handle each GPS update by drawing/updating a Mapbox annotation
+  Future<void> _onNewPosition(geolocator.Position pos) async {
+    if (mapController == null || annotationManager == null) return;
+
+    // Load your marker image
+    final byteData = await rootBundle.load('assets/img_1.png');
+    final imageData = byteData.buffer.asUint8List();
+
+    // Build annotation options
+    final opts = mb.PointAnnotationOptions(
+      geometry: mb.Point(
+        coordinates: mb.Position(pos.longitude, pos.latitude),
+      ),
+      image: imageData,
+      iconSize: 1.2,
+    );
+
+    // If we already have one, remove it
+    if (userAnnotation != null) {
+      await annotationManager!.delete(userAnnotation!);
+      userAnnotation = null;
+    }
+
+    // Create a new one
+    userAnnotation = await annotationManager!.create(opts);
+
+    // Optional: move camera to follow the user
+    // await mapController!.camera.easeTo(
+    //   mb.CameraOptions(
+    //     center: mb.Point(coordinates: mb.Position(pos.longitude, pos.latitude)),
+    //     zoom: 15.0,
+    //   ),
+    // );
+  }
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // LOCATION PICKER
+  // ───────────────────────────────────────────────────────────────────────────
+  void _selectLocation(bool isStarting) async {
+    final places = [
+      "الكيلو 21","الهانوفيل","البيطاش","المحطة","المنشية",
+      "الموقف","سموحة","محطة الرمل","الشاطبي","العوايد","العصافرة 45"
+    ];
+    final disconnectedAreas = {
+      "الكيلو 21": ["الكيلو 21","الهانوفيل","البيطاش"],
+      "الهانوفيل": ["الكيلو 21","الهانوفيل","البيطاش"],
+      "البيطاش": ["الكيلو 21","الهانوفيل","البيطاش"],
     };
-
-    final List<String> urbanAreas = [
-      "المحطة",
-      "المنشية",
-      "الموقف",
-      "سموحة",
-      "محطة الرمل",
-      "الشاطبي",
-      "العوايد",
-      "العصافرة 45"
+    final urbanAreas = [
+      "المحطة","المنشية","الموقف","سموحة","محطة الرمل",
+      "الشاطبي","العوايد","العصافرة 45"
     ];
 
-    String currentLocation = isStartingPoint ? startingPoint : destination;
-    String otherLocation = isStartingPoint ? destination : startingPoint;
-
-    List<String> availableLocations = places.where((location) {
-      if (location == currentLocation) return false;
-
-      if (!isStartingPoint) {
-        // If selecting “ending point,” apply disconnected‐areas logic:
+    String current = isStarting ? startingPoint : destination;
+    var available = places.where((loc) {
+      if (loc == current) return false;
+      if (!isStarting) {
         if (urbanAreas.contains(startingPoint)) {
-          if (!disconnectedAreas["الكيلو 21"]!.contains(location)) {
-            return false;
-          }
-        } else {
-          if (disconnectedAreas.containsKey(startingPoint)) {
-            if (disconnectedAreas[startingPoint]!.contains(location)) {
-              return false;
-            }
-          }
+          if (!disconnectedAreas["الكيلو 21"]!.contains(loc)) return false;
+        } else if (disconnectedAreas.containsKey(startingPoint)) {
+          if (disconnectedAreas[startingPoint]!.contains(loc)) return false;
         }
-
-        if (location == startingPoint) return false;
       }
-
-      if (isStartingPoint) {
-        if (location == destination) return false;
-      }
-
       return true;
     }).toList();
 
-    String? selected = await showModalBottomSheet<String>(
+    String? sel = await showModalBottomSheet<String>(
       context: context,
-      builder: (BuildContext context) {
-        return Container(
-          padding: const EdgeInsets.all(16),
-          child: ListView(
-            children: availableLocations
-                .map((place) =>
-                ListTile(
-                  title: Text(place),
-                  onTap: () => Navigator.pop(context, place),
-                ))
-                .toList(),
-          ),
-        );
-      },
+      builder: (_) => Container(
+        padding: const EdgeInsets.all(16),
+        child: ListView(
+          children: available.map((p) => ListTile(
+            title: Text(p),
+            onTap: () => Navigator.pop(context, p),
+          )).toList(),
+        ),
+      ),
     );
 
-    if (selected != null) {
+    if (sel != null) {
       setState(() {
-        if (isStartingPoint) {
-          startingPoint = selected;
-          if (disconnectedAreas.containsKey(selected) &&
-              disconnectedAreas[selected]!.contains(destination)) {
+        if (isStarting) {
+          startingPoint = sel;
+          if (disconnectedAreas.containsKey(sel) &&
+              disconnectedAreas[sel]!.contains(destination)) {
             destination = "My Destination";
           }
         } else {
-          destination = selected;
+          destination = sel;
         }
       });
     }
   }
 
-  // ===================== Live Tracking Dialogs =====================
+  // ───────────────────────────────────────────────────────────────────────────
+  // LIVE-TRACKING DIALOGS
+  // ───────────────────────────────────────────────────────────────────────────
   void _showLiveTrackingDialog() {
     showDialog(
       context: context,
-      builder: (BuildContext context) {
-        String userId = '';
-
+      builder: (ctx) {
+        String userId = "";
         return Dialog(
           backgroundColor: Colors.white,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          insetPadding: const EdgeInsets.symmetric(horizontal: 25, vertical: 20),
+          shape:
+          RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          insetPadding:
+          const EdgeInsets.symmetric(horizontal: 25, vertical: 20),
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(20),
             child: Column(
@@ -149,64 +195,45 @@ class _HomeScreenState extends State<HomeScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text(
-                      "Live Tracking",
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black,
-                      ),
-                    ),
+                    const Text("Live Tracking",
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        )),
                     GestureDetector(
-                      onTap: () => Navigator.pop(context),
-                      child: const Icon(Icons.close, color: Colors.grey),
-                    ),
+                        onTap: () => Navigator.pop(ctx),
+                        child: const Icon(Icons.close)),
                   ],
                 ),
                 const SizedBox(height: 16),
                 const Text(
                   "To start a live location session, enter the ID of the person you want to track.\n"
-                      "Once they accept your request, both of your locations will be visible on the map in real-time.",
-                  style: TextStyle(fontSize: 16, color: Colors.black),
+                      "Once they accept, you'll both be visible on the map in real-time.",
+                  style: TextStyle(fontSize: 16),
                 ),
-                const SizedBox(height: 17),
+                const SizedBox(height: 16),
                 TextField(
                   decoration: const InputDecoration(
                     labelText: "Enter User ID",
                     border: OutlineInputBorder(),
-                    filled: true,
-                    fillColor: Colors.white,
-                    contentPadding:
-                    EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   ),
-                  onChanged: (value) => userId = value,
+                  onChanged: (v) => userId = v,
                 ),
-                const SizedBox(height: 20),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: () {
-                      if (userId.isEmpty) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text("Please enter a User ID")),
-                        );
-                        return;
-                      }
-                      Navigator.pop(context);
-                      _startLiveTracking(userId);
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF175579),
-                      padding: const EdgeInsets.symmetric(vertical: 14.0),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(30),
-                      ),
-                    ),
-                    child: const Text(
-                      "Send Tracking Request",
-                      style: TextStyle(fontSize: 16, color: Colors.white),
-                    ),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: () {
+                    if (userId.isEmpty) {
+                      ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(
+                          content: Text("Please enter a User ID")));
+                      return;
+                    }
+                    Navigator.pop(ctx);
+                    _startLiveTracking(userId);
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF175579),
                   ),
+                  child: const Text("Send Tracking Request"),
                 ),
               ],
             ),
@@ -215,7 +242,6 @@ class _HomeScreenState extends State<HomeScreen> {
       },
     );
   }
-
 
   Future<void> _startLiveTracking(String userId) async {
     _showWaitingDialog(userId);
@@ -228,72 +254,19 @@ class _HomeScreenState extends State<HomeScreen> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (BuildContext context) {
-        return Dialog(
-          backgroundColor: Colors.white,
-          shape:
-          RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          insetPadding:
-          const EdgeInsets.symmetric(horizontal: 25, vertical: 150),
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Stack(
-              children: [
-                Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    const Text(
-                      "Live Tracking",
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      "You’ve sent a live location tracking request to User ID: $userId.",
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        fontSize: 15,
-                        color: Colors.black87,
-                      ),
-                    ),
-                    const SizedBox(height: 25),
-                    const SizedBox(
-                      width: 75,
-                      height: 75,
-                      child: CircularProgressIndicator(
-                        color: Color(0xFF979797),
-                        strokeWidth: 10,
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    const Text(
-                      "We're waiting for them to accept.",
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black87,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
-                ),
-                Positioned(
-                  top: 0,
-                  right: 0,
-                  child:
-                  GestureDetector(onTap: () => Navigator.of(context).pop(),
-                      child: const Icon(Icons.close, color: Colors.black54)),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
+      builder: (_) => Dialog(
+      shape:
+        RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        insetPadding: EdgeInsets.symmetric(horizontal: 25, vertical: 150),
+        child: Padding(
+          padding: EdgeInsets.all(20),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            CircularProgressIndicator(),
+            SizedBox(height: 12),
+            Text("Waiting for them to accept…"),
+          ]),
+        ),
+      ),
     );
   }
 
@@ -302,98 +275,18 @@ class _HomeScreenState extends State<HomeScreen> {
       isTracking = true;
       trackingUserId = userId;
     });
-
     showDialog(
       context: context,
-      barrierDismissible: true,
-      builder: (BuildContext context) {
-        return Dialog(
-          backgroundColor: Colors.white,
-          shape:
-          RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          insetPadding:
-          const EdgeInsets.symmetric(horizontal: 25, vertical: 150),
-          child: Stack(
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    const SizedBox(height: 10),
-                    const Text(
-                      "Live Tracking Started",
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    RichText(
-                      textAlign: TextAlign.center,
-                      text: TextSpan(
-                        style: const TextStyle(
-                          fontSize: 15,
-                          color: Colors.black87,
-                        ),
-                        children: [
-                          const TextSpan(
-                              text: "You’re now sharing live locations with\n"),
-                          const TextSpan(text: "User ID: "),
-                          TextSpan(
-                            text: userId,
-                            style: const TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          const TextSpan(text: "."),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    Container(
-                      width: 80,
-                      height: 80,
-                      decoration: const BoxDecoration(
-                        color: Color(0xFF175579),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                          Icons.check, color: Colors.white, size: 40),
-                    ),
-                    const SizedBox(height: 20),
-                    RichText(
-                      textAlign: TextAlign.center,
-                      text: const TextSpan(
-                        style: TextStyle(
-                          fontSize: 15,
-                          color: Colors.black87,
-                        ),
-                        children: [
-                          TextSpan(text: "This session will last for "),
-                          TextSpan(
-                            text: "1 hour",
-                            style: TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          TextSpan(
-                              text: ".\nYou can continue exploring the app while tracking runs in the background."),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Positioned(
-                top: 10,
-                right: 10,
-                child:
-                GestureDetector(onTap: () => Navigator.of(context).pop(),
-                    child: const Icon(Icons.close, color: Colors.black54)),
-              ),
-            ],
-          ),
-        );
-      },
+      builder: (_) => AlertDialog(
+        title: const Text("Live Tracking Started"),
+        content: Text("You’re now sharing live locations with User ID: $userId"),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("OK"),
+          )
+        ],
+      ),
     );
   }
 
@@ -402,9 +295,8 @@ class _HomeScreenState extends State<HomeScreen> {
       isTracking = false;
       trackingUserId = null;
     });
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Stopped sharing location")),
-    );
+    ScaffoldMessenger.of(context)
+        .showSnackBar(const SnackBar(content: Text("Stopped sharing location")));
   }
 
   // ===================== Route Confirmation Dialog =====================
@@ -560,205 +452,76 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       key: _scaffoldKey,
       drawer: _buildDrawer(),
-
-      // ← prevents the map from resizing/scrolling when the keyboard appears
       resizeToAvoidBottomInset: false,
-
-      body: MediaQuery.removePadding(
-        context: context,
-        removeTop: true,
-        removeBottom: true,
-        child: Stack(
-          children: [
-            // 1) Truly fill the entire screen with MapboxView:
-            Positioned.fill(
-              child: MapboxView(
-                onMapCreated: _onMapCreated,
-                styleUri: "mapbox://styles/mapbox/streets-v11",
-                cameraOptions: CameraOptions(
-                  center: Point(coordinates: Position(29.9187, 31.2001)),
-                  zoom: 13.0,
-                ),
-              ),
+      body: Stack(children: [
+        // 1) Full-screen Mapbox:
+        Positioned.fill(
+          child: MapboxView(
+            onMapCreated: _onMapCreated,
+            styleUri: "mapbox://styles/mapbox/streets-v11",
+            cameraOptions: mb.CameraOptions(
+              center: mb.Point(coordinates: mb.Position(29.9187, 31.2001)),
+              zoom: 13.0,
             ),
-
-            // 2) Menu button in top-left:
-            Positioned(
-              top: 40,
-              left: 20,
-              child: GestureDetector(
-                onTap: () => _scaffoldKey.currentState?.openDrawer(),
-                child: Container(
-                  width: 48,
-                  height: 48,
-                  decoration: const BoxDecoration(
-                    color: Color(0xFF175579),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Center(
-                    child: SizedBox(
-                      width: 37,
-                      height: 37,
-                      child: Image.asset(
-                        'assets/img_1.png',
-                        fit: BoxFit.contain,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-
-            // 3) Live‐tracking overlay if active:
-            if (isTracking) ...[
-              Positioned(
-                top: 40,
-                left: 78,
-                right: 17,
-                child: ElevatedButton(
-                  onPressed: _stopSharing,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF175579),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(30)),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                  ),
-                  child: const Text(
-                    "STOP SHARING",
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ),
-
-              // Example circles for map markers:
-              Positioned(
-                left: 100,
-                top: 150,
-                child: Container(
-                  width: 113,
-                  height: 113,
-                  decoration: BoxDecoration(
-                    color: Colors.blue.withOpacity(0.2),
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.blue.withOpacity(0.3),
-                        blurRadius: 15,
-                        spreadRadius: 5,
-                      ),
-                    ],
-                  ),
-                  child: const Center(
-                    child: Icon(
-                        Icons.location_on, color: Colors.blue, size: 30),
-                  ),
-                ),
-              ),
-
-              Positioned(
-                left: 250,
-                top: 400,
-                child: Container(
-                  width: 113,
-                  height: 113,
-                  decoration: BoxDecoration(
-                    color: Colors.red.withOpacity(0.2),
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.red.withOpacity(0.3),
-                        blurRadius: 15,
-                        spreadRadius: 5,
-                      ),
-                    ],
-                  ),
-                  child: const Center(
-                    child: Icon(Icons.location_on, color: Colors.red, size: 30),
-                  ),
-                ),
-              ),
-            ],
-
-            // 4) Bottom panel with “GO” button & selectors:
-            Align(
-              alignment: Alignment.bottomCenter,
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 16, vertical: 27),
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-                  boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 10)],
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        SizedBox(
-                          height: 120,
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              const Icon(Icons.my_location, color: Colors.blue),
-                              _buildDashedLine(),
-                              const Icon(Icons.location_on, color: Colors.red),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              GestureDetector(
-                                onTap: () => _selectLocation(true),
-                                child: _buildLocationRow(
-                                    "STARTING POINT", startingPoint),
-                              ),
-                              const SizedBox(height: 12),
-                              Divider(
-                                  color: Colors.grey.shade300, thickness: 1),
-                              const SizedBox(height: 12),
-                              Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Expanded(
-                                    child: GestureDetector(
-                                      onTap: () => _selectLocation(false),
-                                      child: _buildLocationRow(
-                                          "ENDING POINT", destination),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 16),
-                                  SizedBox(
-                                    width: 80,
-                                    height: 50,
-                                    child: buildGoButton(
-                                      context: context,
-                                      startingPoint: startingPoint,
-                                      destination: destination,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
+          ),
         ),
-      ),
+
+        // 2) STOP SHARING if tracking:
+        if (isTracking)
+          Positioned(
+            top: 40,
+            left: 80,
+            right: 20,
+            child: ElevatedButton(
+              onPressed: _stopSharing,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF175579),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(30)),
+              ),
+              child: const Text("STOP SHARING"),
+            ),
+          ),
+
+        // 3) GO‐button panel at bottom:
+        Align(
+          alignment: Alignment.bottomCenter,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+              boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 10)],
+            ),
+            child: Row(children: [
+              Column(children: const [
+                Icon(Icons.my_location, color: Colors.blue),
+                SizedBox(height: 4),
+                Icon(Icons.location_on, color: Colors.red),
+              ]),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(children: [
+                  GestureDetector(
+                      onTap: () => _selectLocation(true),
+                      child: Text(startingPoint,
+                          style: const TextStyle(fontWeight: FontWeight.bold))),
+                  const Divider(),
+                  GestureDetector(
+                      onTap: () => _selectLocation(false),
+                      child: Text(destination,
+                          style: const TextStyle(fontWeight: FontWeight.bold))),
+                ]),
+              ),
+              buildGoButton(
+                context: context,
+                startingPoint: startingPoint,
+                destination: destination,
+              ),
+            ]),
+          ),
+        ),
+      ]),
     );
   }
 
@@ -795,9 +558,12 @@ class _HomeScreenState extends State<HomeScreen> {
               _showLiveTrackingDialog();
             }),
 
-            _buildDrawerButton(Icons.business, "Salkah Assets", () {
+            _buildDrawerButton(Icons.business, "Salkah Assist", () {
               Navigator.pop(context);
-              // Navigate to Assets Screen
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const ChatAssistScreen()),
+              );
             }),
 
             _buildDrawerButton(Icons.account_circle, "Account", () {

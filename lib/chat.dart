@@ -17,17 +17,14 @@ class _ChatAssistScreenState extends State<ChatAssistScreen> {
   final TextEditingController _controller = TextEditingController();
   bool _isSending = false;
 
-  // ◾ Replace this with your actual ngrok URL (no trailing slash)
   static const String _chatbotBaseUrl =
-      "http://74.162.120.214:5000/api/query";
-  // ◾ Your Flask app’s route is /api/query
+      "https://1aad-156-212-124-122.ngrok-free.app/api/query";
   static const String _chatPath = "/api/query";
 
   Future<void> _sendMessage() async {
     final text = _controller.text.trim();
     if (text.isEmpty) return;
 
-    // Add user's message immediately
     setState(() {
       _messages.add(ChatMessage(text: text, isUser: true));
       _isSending = true;
@@ -35,6 +32,7 @@ class _ChatAssistScreenState extends State<ChatAssistScreen> {
     });
 
     try {
+      // builds: https://4001-156-212-124-122.ngrok-free.app/api/query
       final uri = Uri.parse("$_chatbotBaseUrl$_chatPath");
       final payload = {"question": text};
 
@@ -52,7 +50,6 @@ class _ChatAssistScreenState extends State<ChatAssistScreen> {
 
       if (response.statusCode == 200) {
         final bodyJson = jsonDecode(response.body) as Map<String, dynamic>;
-        // Flask returns {"answer": "...", "sources": [...], "error": ""}
         final botReply = bodyJson["answer"]?.toString() ??
             "Sorry, I didn’t see an answer field.";
         setState(() {
@@ -61,8 +58,7 @@ class _ChatAssistScreenState extends State<ChatAssistScreen> {
       } else {
         setState(() {
           _messages.add(ChatMessage(
-            text:
-            "Error: chatbot responded with status ${response.statusCode}",
+            text: "Error: chatbot responded with ${response.statusCode}",
             isUser: false,
           ));
         });
@@ -133,7 +129,7 @@ class _ChatAssistScreenState extends State<ChatAssistScreen> {
               ),
             ),
 
-            // ── Quick suggestions (optional) ──
+            // ── Quick suggestions ──
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Row(
@@ -146,7 +142,7 @@ class _ChatAssistScreenState extends State<ChatAssistScreen> {
             ),
             const SizedBox(height: 16),
 
-            // ── Input field + Send button ──
+            // ── Input + Send ──
             Container(
               color: Colors.white,
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -215,10 +211,7 @@ class _ChatAssistScreenState extends State<ChatAssistScreen> {
           borderRadius: BorderRadius.circular(20),
         ),
       ),
-      onPressed: () {
-        // Tapping a suggestion just puts that text into the input field:
-        _controller.text = label;
-      },
+      onPressed: () => _controller.text = label,
       child: Text(label, style: const TextStyle(color: Colors.black)),
     );
   }
