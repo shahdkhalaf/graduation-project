@@ -11,7 +11,7 @@ class AccountScreen extends StatefulWidget {
 }
 
 class _AccountScreenState extends State<AccountScreen> {
-  // هنا هتحط متغيرات البيانات
+  String userId = "";
   String firstName = "";
   String lastName = "";
   String email = "";
@@ -49,6 +49,7 @@ class _AccountScreenState extends State<AccountScreen> {
           final user = data['user'];
 
           setState(() {
+            userId = user['user_id']?.toString() ?? '';
             firstName = user['first_name'] ?? '';
             lastName = user['last_name'] ?? '';
             email = user['email'] ?? '';
@@ -67,8 +68,6 @@ class _AccountScreenState extends State<AccountScreen> {
     }
   }
 
-
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -79,19 +78,53 @@ class _AccountScreenState extends State<AccountScreen> {
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildAccountRow("First Name", firstName),
-            _buildAccountRow("Last Name", lastName),
-            _buildAccountRow("Email", email),
-            _buildAccountRow("Age", age),
-            _buildAccountRow("Gender", gender),
-            _buildAccountRow("District", district),
-          ],
+          child: Card(
+            elevation: 8,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            color: Colors.grey[50],
+            child: Padding(
+              padding: const EdgeInsets.all(20.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Icon(Icons.account_circle, size: 80, color: Color(0xFF175579)),
+                  ),
+                  const SizedBox(height: 16),
+                  Center(
+                    child: Text(
+                      "$firstName $lastName",
+                      style: const TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF175579),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Center(
+                    child: Text(
+                      email,
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: Colors.grey[700],
+                      ),
+                    ),
+                  ),
+                  const Divider(height: 32, thickness: 1),
+                  _buildAccountRow("User ID", userId),
+                  _buildAccountRow("Age", age),
+                  _buildAccountRow("Gender", gender),
+                  _buildAccountRow("District", district),
+                ],
+              ),
+            ),
+          ),
         ),
       ),
-    ));
+    );
   }
 
   Widget _buildAccountRow(String label, String value) {
@@ -105,6 +138,7 @@ class _AccountScreenState extends State<AccountScreen> {
             style: const TextStyle(
               fontWeight: FontWeight.bold,
               fontSize: 16,
+              color: Color(0xFF175579),
             ),
           ),
           Expanded(
