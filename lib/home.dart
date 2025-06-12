@@ -30,6 +30,24 @@ class _HomeScreenState extends State<HomeScreen> {
   Location _location = Location(); // Location plugin
   Point? userLocation;       // Latest user location
 
+  // 1) Define all 11 station coordinates:
+  final Map<String, Point> stationCoordinates = {
+    'الكيلو 21'    : Point(coordinates: Position(29.732364031977227, 31.076940002163834)),
+    'الهانوفيل'   : Point(coordinates: Position(29.7737962897978,   31.100660476700302)),
+    'البيطاش'     : Point(coordinates: Position(29.794616029183466, 31.114673018531825)),
+    'محطة مصر'    : Point(coordinates: Position(29.902791889923858, 31.192916486699772)),
+    'المنشية'     : Point(coordinates: Position(29.77419867844223,  31.102908974291907)),
+    'الموقف'      : Point(coordinates: Position(29.91418429325476,  31.177764223393417)),
+    'سموحة'       : Point(coordinates: Position(29.941992632377847, 31.215586816840094)),
+    'محطة الرمل'  : Point(coordinates: Position(29.89918175001191,  31.200467931344026)),
+    'الشاطبي'     : Point(coordinates: Position(29.909911356144615, 31.205853504540226)),
+    'العوايد'     : Point(coordinates: Position(29.993849433492482, 31.22019370556297)),
+    'العصافرة 45' : Point(coordinates: Position(30.00586772502079,  31.26402506209855)),
+  };
+
+  // 2) A line‐manager to draw polylines on the map:
+  LineAnnotationManager? _lineManager;
+
   @override
   void initState() {
     super.initState();
@@ -66,6 +84,28 @@ class _HomeScreenState extends State<HomeScreen> {
       LocationComponentSettings(
         enabled: true,
         pulsingEnabled: false,
+      ),
+    );
+    // initialize our line‐annotation manager
+    _lineManager = LineAnnotationManager(
+        controller.annotations.createLineAnnotationManager()
+    );
+  }
+
+  // ===================== Helper to draw walking route =====================
+  Future<void> _drawRoute(List<Position> route) async {
+    if (_lineManager == null) return;
+    // clear any existing route
+    await _lineManager!.deleteAll();
+
+    // map Position → [lng, lat]
+    final coords = route.map((p) => [p.longitude, p.latitude]).toList();
+
+    await _lineManager!.create(
+      LineAnnotationOptions(
+        geometry: coords,
+        lineColor: "#175579",
+        lineWidth: 4.0,
       ),
     );
   }
@@ -558,6 +598,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+ 
   // ===================== Main Build =====================
   @override
   Widget build(BuildContext context) {
@@ -615,6 +656,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
+                              // STARTING POINT selector
                               GestureDetector(
                                 onTap: () => _selectLocation(true),
                                 child: _buildLocationRow(
@@ -626,6 +668,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               Row(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
+                                  // ENDING POINT selector
                                   Expanded(
                                     child: GestureDetector(
                                       onTap: () => _selectLocation(false),
@@ -634,14 +677,82 @@ class _HomeScreenState extends State<HomeScreen> {
                                     ),
                                   ),
                                   const SizedBox(width: 16),
+                                  // NEW GO button
                                   SizedBox(
-                                    width: 80,
-                                    height: 50,
-                                    child: buildGoButton(
-                                      context: context,
-                                      startingPoint: startingPoint,
-                                      destination: destination,
-                                      currentLocation: userLocation,
+                                    width: 80, height: 50,
+                                    child: ElevatedButton(
+                                      onPressed: () async {
+                                        // a) draw walking route
+                                        final destPoint = stationCoordinates[destination];
+                                        if (userLocation != null && destPoint != null) {
+                                          final route = await ApiService.fetchRoute(
+                                            start: userLocation!,
+                                            end: destPoint,
+                                            profile: 'walking',
+                                          );
+                                          await _drawRoute(route);
+                                        }
+
+                                        // b) now fetch waiting time
+                                        final hour = DateTime.now().hour;
+                                        final timeOfDay = hour < 9
+                                            ? "From 6 AM To 9 AM"
+                                            : hour < 12
+                                            ? "From 9 AM To 12 PM"
+                                            : hour < 15
+                                            ? "From 12 PM To 3 PM"
+                                            : hour < 18
+                                            ? "From 3 PM To 6 PM"
+                                            : "From 6 PM To 9 PM";
+                                        final now = DateTime.now();
+                                        final isWeekend = (now.weekday == DateTime.friday ||
+                                            now.weekday == DateTime.saturday)
+                                            ? "yes"
+                                            : "no";
+
+                                        final result = await ApiService.fetchWaitingTime(
+                                          age: 23,
+                                          gender: "female",
+                                          from: destination,
+                                          to: destination,
+                                          time: timeOfDay,
+                                          isRainy: "no",
+                                          isWeekend: isWeekend,
+                                        );
+
+                                        if (!mounted) return;
+                                        if (result != null) {
+                                          showDialog(
+                                            context: context,
+                                            builder: (_) => AlertDialog(
+                                              title: const Text("Waiting Time"),
+                                              content: Text(result),
+                                              actions: [
+                                                TextButton(
+                                                  onPressed: () => Navigator.pop(context),
+                                                  child: const Text("OK"),
+                                                ),
+                                              ],
+                                            ),
+                                          );
+                                        } else {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            const SnackBar(
+                                              content: Text("Failed to fetch waiting time"),
+                                            ),
+                                          );
+                                        }
+                                      },
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: const Color(0xFF175579),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(30),
+                                        ),
+                                      ),
+                                      child: const Text("GO",
+                                          style: TextStyle(
+                                              fontSize: 16,
+                                              color: Colors.white)),
                                     ),
                                   ),
                                 ],
