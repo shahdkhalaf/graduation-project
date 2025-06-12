@@ -3,12 +3,12 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class ApiService {
-  // ← your new regression endpoint
+
   static const String baseUrl =
       "https://reg-model-deffhegbbac0anfx.switzerlandnorth-01.azurewebsites.net";
 
-  // (You still have your OCR endpoint here if needed, but we’re focusing on /predict today.)
-  static const String ocrEndpoint = "http://72.146.224.5:5000/ocr";
+  // (OCR endpoint here)
+  static const String ocrEndpoint = "'http://4.182.248.150:5000/ocr";
 
   /// ⏳ Waiting Time Prediction
   /// Returns the first element of "Q50_prediction" as a String, or null on failure.
