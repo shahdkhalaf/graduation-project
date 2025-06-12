@@ -1,7 +1,8 @@
 // lib/home.dart
 
 import 'package:flutter/material.dart';
-import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
+
+import 'package:shared_preferences/shared_preferences.dart';import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 
 import 'mapbox_view.dart';         // our helper widget
 import 'api/api_service.dart';     // if you still need it
@@ -20,12 +21,12 @@ class _HomeScreenState extends State<HomeScreen> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   String startingPoint = "My current location";
-  String destination   = "My Destination";
+  String destination = "My Destination";
 
-  bool isTracking = false;       // Live‐tracking flag
-  String? trackingUserId;        // ID being tracked
+  bool isTracking = false; // Live‐tracking flag
+  String? trackingUserId; // ID being tracked
 
-  MapboxMap? mapboxMap;          // Store controller once map is ready
+  MapboxMap? mapboxMap; // Store controller once map is ready
 
   void _onMapCreated(MapboxMap controller) {
     mapboxMap = controller;
@@ -66,7 +67,7 @@ class _HomeScreenState extends State<HomeScreen> {
     ];
 
     String currentLocation = isStartingPoint ? startingPoint : destination;
-    String otherLocation   = isStartingPoint ? destination    : startingPoint;
+    String otherLocation = isStartingPoint ? destination : startingPoint;
 
     List<String> availableLocations = places.where((location) {
       if (location == currentLocation) return false;
@@ -102,10 +103,11 @@ class _HomeScreenState extends State<HomeScreen> {
           padding: const EdgeInsets.all(16),
           child: ListView(
             children: availableLocations
-                .map((place) => ListTile(
-              title: Text(place),
-              onTap: () => Navigator.pop(context, place),
-            ))
+                .map((place) =>
+                ListTile(
+                  title: Text(place),
+                  onTap: () => Navigator.pop(context, place),
+                ))
                 .toList(),
           ),
         );
@@ -192,7 +194,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     onPressed: () {
                       if (userId.isEmpty) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text("Please enter a User ID")),
+                          const SnackBar(content: Text(
+                              "Please enter a User ID")),
                         );
                         return;
                       }
@@ -289,7 +292,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   top: 0,
                   right: 0,
                   child:
-                  GestureDetector(onTap: () => Navigator.of(context).pop(), child: const Icon(Icons.close, color: Colors.black54)),
+                  GestureDetector(onTap: () => Navigator.of(context).pop(),
+                      child: const Icon(Icons.close, color: Colors.black54)),
                 ),
               ],
             ),
@@ -341,7 +345,8 @@ class _HomeScreenState extends State<HomeScreen> {
                           color: Colors.black87,
                         ),
                         children: [
-                          const TextSpan(text: "You’re now sharing live locations with\n"),
+                          const TextSpan(
+                              text: "You’re now sharing live locations with\n"),
                           const TextSpan(text: "User ID: "),
                           TextSpan(
                             text: userId,
@@ -359,7 +364,8 @@ class _HomeScreenState extends State<HomeScreen> {
                         color: Color(0xFF175579),
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(Icons.check, color: Colors.white, size: 40),
+                      child: const Icon(
+                          Icons.check, color: Colors.white, size: 40),
                     ),
                     const SizedBox(height: 20),
                     RichText(
@@ -375,7 +381,8 @@ class _HomeScreenState extends State<HomeScreen> {
                             text: "1 hour",
                             style: TextStyle(fontWeight: FontWeight.bold),
                           ),
-                          TextSpan(text: ".\nYou can continue exploring the app while tracking runs in the background."),
+                          TextSpan(
+                              text: ".\nYou can continue exploring the app while tracking runs in the background."),
                         ],
                       ),
                     ),
@@ -386,7 +393,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 top: 10,
                 right: 10,
                 child:
-                GestureDetector(onTap: () => Navigator.of(context).pop(), child: const Icon(Icons.close, color: Colors.black54)),
+                GestureDetector(onTap: () => Navigator.of(context).pop(),
+                    child: const Icon(Icons.close, color: Colors.black54)),
               ),
             ],
           ),
@@ -502,8 +510,10 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
-          Text(value, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+          Text(label, style: const TextStyle(
+              fontSize: 14, fontWeight: FontWeight.bold)),
+          Text(value, style: const TextStyle(
+              fontSize: 14, fontWeight: FontWeight.bold)),
         ],
       ),
     );
@@ -514,12 +524,13 @@ class _HomeScreenState extends State<HomeScreen> {
       mainAxisSize: MainAxisSize.min,
       children: List.generate(
         6,
-            (index) => Container(
-          width: 2,
-          height: 5,
-          color: Colors.grey.shade600,
-          margin: const EdgeInsets.symmetric(vertical: 2),
-        ),
+            (index) =>
+            Container(
+              width: 2,
+              height: 5,
+              color: Colors.grey.shade600,
+              margin: const EdgeInsets.symmetric(vertical: 2),
+            ),
       ),
     );
   }
@@ -614,7 +625,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   onPressed: _stopSharing,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF175579),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(30)),
                     padding: const EdgeInsets.symmetric(vertical: 12),
                   ),
                   child: const Text(
@@ -647,7 +659,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     ],
                   ),
                   child: const Center(
-                    child: Icon(Icons.location_on, color: Colors.blue, size: 30),
+                    child: Icon(
+                        Icons.location_on, color: Colors.blue, size: 30),
                   ),
                 ),
               ),
@@ -680,7 +693,8 @@ class _HomeScreenState extends State<HomeScreen> {
             Align(
               alignment: Alignment.bottomCenter,
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 27),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 16, vertical: 27),
                 decoration: const BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
@@ -710,10 +724,12 @@ class _HomeScreenState extends State<HomeScreen> {
                             children: [
                               GestureDetector(
                                 onTap: () => _selectLocation(true),
-                                child: _buildLocationRow("STARTING POINT", startingPoint),
+                                child: _buildLocationRow(
+                                    "STARTING POINT", startingPoint),
                               ),
                               const SizedBox(height: 12),
-                              Divider(color: Colors.grey.shade300, thickness: 1),
+                              Divider(
+                                  color: Colors.grey.shade300, thickness: 1),
                               const SizedBox(height: 12),
                               Row(
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -721,7 +737,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                   Expanded(
                                     child: GestureDetector(
                                       onTap: () => _selectLocation(false),
-                                      child: _buildLocationRow("ENDING POINT", destination),
+                                      child: _buildLocationRow(
+                                          "ENDING POINT", destination),
                                     ),
                                   ),
                                   const SizedBox(width: 16),
@@ -753,46 +770,65 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildDrawer() {
     return Drawer(
-      child: ListView(
+      child: Column(
         children: [
-          DrawerHeader(
-            decoration: const BoxDecoration(color: Color(0xFF175579)),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
+          Expanded(
+            child: ListView(
               children: [
-                Image.asset('assets/salkah.png', width: 250, height: 80),
-                const SizedBox(width: 10),
+                DrawerHeader(
+                  decoration: const BoxDecoration(color: Color(0xFF175579)),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Image.asset('assets/salkah.png', width: 250, height: 80),
+                      const SizedBox(width: 10),
+                    ],
+                  ),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.report),
+                  title: const Text("Make a complaint"),
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const MakeComplaintScreen()),
+                    );
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.chat),
+                  title: const Text("Chat Assist"),
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const ChatAssistScreen()),
+                    );
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.person_pin_circle),
+                  title: const Text("Live Tracking"),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _showLiveTrackingDialog();
+                  },
+                ),
               ],
             ),
           ),
+          Divider(),
           ListTile(
-            leading: const Icon(Icons.report),
-            title: const Text("Make a complaint"),
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const MakeComplaintScreen()),
-              );
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.chat),
-            title: const Text("Chat Assist"),
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const ChatAssistScreen()),
-              );
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.person_pin_circle),
-            title: const Text("Live Tracking"),
-            onTap: () {
-              Navigator.pop(context);
-              _showLiveTrackingDialog();
+            leading: Icon(Icons.logout),
+            title: Text('Log out'),
+            onTap: () async {
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.clear(); // Clear session/token
+              Navigator.pushReplacementNamed(
+                  context, '/signin'); // Adjust route if needed
             },
           ),
         ],
