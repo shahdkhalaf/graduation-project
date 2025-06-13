@@ -214,7 +214,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       // 1️⃣ ابعت request للـ backend
                       try {
                         final response = await http.post(
-                          Uri.parse('https://YOUR_BACKEND_URL/send_tracking_request'), // عدل هنا ال link بتاعك
+                          Uri.parse('https://graduation-project-production-39f0.up.railway.app/send_tracking_request'), // عدل هنا ال link بتاعك
                           headers: {"Content-Type": "application/json"},
                           body: jsonEncode({
                             "from_user_id": myUserId, // هتحط هنا ال user_id بتاع ال user اللي عامل request (3 مثلا)
