@@ -1,4 +1,7 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 import 'package:location/location.dart';
@@ -9,6 +12,7 @@ import 'api/api_service.dart';     // if you still need it
 import 'components/go_button.dart'; // updated GO button
 import 'chat.dart';
 import 'make_complaint_screen.dart';
+import 'package:flutter/services.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -33,6 +37,11 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    // Make status bar transparent
+    SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.dark, // لو الماب فاتحة، لو غامقة حط Brightness.light
+    ));
     _initLocationListener();
   }
 
@@ -189,16 +198,42 @@ class _HomeScreenState extends State<HomeScreen> {
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
-                    onPressed: () {
+                    onPressed: () async {
                       if (userId.isEmpty) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(content: Text("Please enter a User ID")),
                         );
                         return;
                       }
-                      Navigator.pop(context);
-                      _startLiveTracking(userId);
+                      final prefs = await SharedPreferences.getInstance();
+                      final myUserId = prefs.getInt('user_id') ?? 0;
+
+                      // 1️⃣ ابعت request للـ backend
+                      try {
+                        final response = await http.post(
+                          Uri.parse('https://graduation-project-production-39f0.up.railway.app/send_tracking_request'), // عدل هنا ال link بتاعك
+                          headers: {"Content-Type": "application/json"},
+                          body: jsonEncode({
+                            "from_user_id": myUserId, // هتحط هنا ال user_id بتاع ال user اللي عامل request (3 مثلا)
+                            "to_user_id": int.parse(userId),
+                          }),
+                        );
+
+                        if (response.statusCode == 201) {
+                          Navigator.pop(context);
+                          _startLiveTracking(userId);
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text("Failed to send request: ${response.statusCode}")),
+                          );
+                        }
+                      } catch (e) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text("Error sending request: $e")),
+                        );
+                      }
                     },
+
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF175579),
                       padding: const EdgeInsets.symmetric(vertical: 14.0),
@@ -563,12 +598,14 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       key: _scaffoldKey,
+
       drawer: _buildDrawer(),
       resizeToAvoidBottomInset: false,
       body: MediaQuery.removePadding(
         context: context,
         removeTop: true,
         removeBottom: true,
+
         child: Stack(
           children: [
             // Map
@@ -582,7 +619,37 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
             ),
-
+            // 👇 الصورة floating فوق
+            Positioned(
+              top: 40,
+              left: 20,
+              child: GestureDetector(
+                onTap: () {
+                  _scaffoldKey.currentState?.openDrawer();
+                },
+                child: Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black26,
+                        blurRadius: 6,
+                      ),
+                    ],
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: Image.asset(
+                      'assets/salkah_logo.png',
+                      fit: BoxFit.contain,
+                    ),
+                  ),
+                ),
+              ),
+            ),
             // Bottom panel with GO button & selectors:
             Align(
               alignment: Alignment.bottomCenter,
