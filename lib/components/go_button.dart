@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 import '../api/api_service.dart';
 
-/// Mapping from station names to [lng, lat].
+/// Mapping from station names → [lng, lat].
 const Map<String, List<double>> _stationCoords = {
   'الكيلو 21'   : [29.732364031977227, 31.076940002163834],
   'الهانوفيل'  : [29.7737962897978,   31.100660476700302],
@@ -23,7 +23,7 @@ const Map<String, List<double>> _stationCoords = {
 
 /// A GO button that:
 /// 1) If user is >50 m from the chosen station, draws a walking route.
-/// 2) Then calls your waiting‐time API and displays the result.
+/// 2) Then calls your waiting-time API, parses Q25/Q50/Q75, and shows it.
 Widget buildGoButton({
   required BuildContext context,
   required MapboxMap mapController,
@@ -32,7 +32,7 @@ Widget buildGoButton({
 }) {
   return ElevatedButton(
     onPressed: () async {
-      // --- 1) Determine if user is “at” the station (within ~50 m) ---
+      // 1. Determine “at station” (within ~50 m?)
       bool atStation = false;
       final sc = _stationCoords[destination];
       if (currentLocation != null && sc != null) {
@@ -43,7 +43,7 @@ Widget buildGoButton({
         atStation = meters < 50;
       }
 
-      // --- 2) If not at station, overlay walking route ---
+      // 2. If not at station, overlay walking route
       if (!atStation && currentLocation != null && sc != null) {
         final geojson = jsonEncode({
           "type": "FeatureCollection",
@@ -61,25 +61,22 @@ Widget buildGoButton({
           ]
         });
 
-        // Add or replace the GeoJSON source:
         await mapController.style.addSource(
           GeoJsonSource(id: "route-source", data: geojson),
         );
-
-        // Add the line layer on top:
         await mapController.style.addLayer(
           LineLayer(
             id: "route-layer",
             sourceId: "route-source",
-            lineColor: Color(0xFF175579).value,
-            lineWidth: 4.0,
+            lineColor: Color(0xFF175579).value, // int
+            lineWidth: 4.0,                    // double
             lineJoin: LineJoin.ROUND,
             lineCap: LineCap.ROUND,
           ),
         );
       }
 
-      // --- 3) Fetch & show waiting time at that station ---
+      // 3. Fetch waiting-time and parse percentiles
       final hour = DateTime.now().hour;
       final timeOfDay = hour < 9
           ? "From 6 AM To 9 AM"
@@ -96,7 +93,7 @@ Widget buildGoButton({
           ? "yes"
           : "no";
 
-      final result = await ApiService.fetchWaitingTime(
+      final raw = await ApiService.fetchWaitingTime(
         age: 23,
         gender: "female",
         from: destination,
@@ -105,27 +102,39 @@ Widget buildGoButton({
         isRainy: "no",
         isWeekend: isWeekend,
       );
-
-      if (!context.mounted) return;
-      if (result != null) {
-        showDialog(
-          context: context,
-          builder: (_) => AlertDialog(
-            title: const Text("Estimated Waiting Time"),
-            content: Text(result),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text("OK"),
-              ),
-            ],
-          ),
-        );
-      } else {
+      if (raw == null) {
+        if (!context.mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Failed to fetch waiting time")),
         );
+        return;
       }
+
+      // Parse the JSON string:
+      final Map<String, dynamic> body = jsonDecode(raw);
+      final q25 = (body['Q25_prediction'] as List).first as num;
+      final q50 = (body['Q50_prediction'] as List).first as num;
+      final q75 = (body['Q75_prediction'] as List).first as num;
+
+      // Build a user‐friendly message:
+      final message = StringBuffer()
+        ..writeln("Median wait: ${q50.toInt()} mins")
+        ..writeln("IQR: ${q25.toInt()}–${q75.toInt()} mins");
+
+      if (!context.mounted) return;
+      showDialog(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: const Text("Estimated Waiting Time"),
+          content: Text(message.toString()),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("OK"),
+            )
+          ],
+        ),
+      );
     },
     style: ElevatedButton.styleFrom(
       backgroundColor: const Color(0xFF175579),
@@ -134,10 +143,10 @@ Widget buildGoButton({
       ),
       padding: const EdgeInsets.symmetric(vertical: 14.0, horizontal: 24.0),
     ),
-    child: const Text("GO",
-        style: TextStyle(fontSize: 16, color: Colors.white)),
+    child: const Text("GO", style: TextStyle(fontSize: 16, color: Colors.white)),
   );
 }
+
 
 
 
