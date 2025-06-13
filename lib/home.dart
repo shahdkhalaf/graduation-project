@@ -635,15 +635,24 @@ class _HomeScreenState extends State<HomeScreen> {
                                   ),
                                   const SizedBox(width: 16),
                                   SizedBox(
-                                    width: 80,
-                                    height: 50,
-                                    child: buildGoButton(
+                                    width: 80, height: 50,
+                                    child: mapboxMap == null
+                                    // show a disabled button (or a spinner) until the map is ready
+                                        ? ElevatedButton(
+                                      onPressed: null,
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.grey.shade400,
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                                      ),
+                                      child: const Text("GO", style: TextStyle(color: Colors.white)),
+                                    )
+                                    // once mapboxMap is non-null, wire up the real GO button
+                                        : buildGoButton(
                                       context: context,
                                       mapController: mapboxMap!,
                                       currentLocation: userLocation,
                                       destination: destination,
                                     ),
-
                                   ),
                                 ],
                               ),
