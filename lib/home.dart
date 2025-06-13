@@ -651,6 +651,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                       context: context,
                                       mapController: mapboxMap!,
                                       currentLocation: userLocation,
+                                      startingPoint: startingPoint,    // ← new!
                                       destination: destination,
                                     ),
                                   ),
