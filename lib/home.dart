@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -27,7 +28,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
   String startingPoint = "My current location";
   String destination = "My Destination";
-
+  Timer? _checkRequestsTimer;
+  Timer? _sendLocationTimer;
+  bool _sendingLocation = false;
   bool isTracking = false;   // Live‐tracking flag
   String? trackingUserId;    // ID being tracked
 
@@ -43,11 +46,123 @@ class _HomeScreenState extends State<HomeScreen> {
     // Make status bar transparent
     SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
-      statusBarIconBrightness: Brightness.dark, // لو الماب فاتحة، لو غامقة حط Brightness.light
+      statusBarIconBrightness: Brightness
+          .dark, // لو الماب فاتحة، لو غامقة حط Brightness.light
     ));
 
     _initLocationListener();
+    _startCheckingRequestsTimer();
   }
+    void _startCheckingRequestsTimer() {
+      _checkRequestsTimer?.cancel();
+      _checkRequestsTimer = Timer.periodic(Duration(seconds: 15), (timer) async {
+        final prefs = await SharedPreferences.getInstance();
+        final myUserId = prefs.getInt('user_id') ?? 0;
+
+        try {
+          final response = await http.get(
+            Uri.parse('https://graduation-project-production-39f0.up.railway.app/check_tracking_requests?user_id=$myUserId'),
+          );
+
+          if (response.statusCode == 200) {
+            final body = jsonDecode(response.body);
+            final requests = body['requests'] as List<dynamic>;
+
+            if (requests.isNotEmpty) {
+              final req = requests.first;
+              final fromUserId = req['from_user_id'];
+
+              _checkRequestsTimer?.cancel();
+              _showIncomingTrackingRequestDialog(fromUserId);
+            }
+          }
+        } catch (e) {
+          print("Error checking tracking requests: $e");
+        }
+      });
+    }
+    void _showIncomingTrackingRequestDialog(int fromUserId) {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) {
+          return AlertDialog(
+            title: const Text("Incoming Live Tracking Request"),
+            content: Text("User ID $fromUserId wants to track your location."),
+            actions: [
+              TextButton(
+                onPressed: () async {
+                  await _updateTrackingRequest(fromUserId, 2); // Reject
+                  Navigator.pop(context);
+                  _startCheckingRequestsTimer();
+                },
+                child: const Text("Reject"),
+              ),
+              TextButton(
+                onPressed: () async {
+                  await _updateTrackingRequest(fromUserId, 1); // Accept
+                  Navigator.pop(context);
+                  _startCheckingRequestsTimer();
+                  _startSendingLocationUpdates(fromUserId);
+                },
+                child: const Text("Accept"),
+              ),
+            ],
+          );
+        },
+      );
+    }
+    Future<void> _updateTrackingRequest(int fromUserId, int status) async {
+      final prefs = await SharedPreferences.getInstance();
+      final myUserId = prefs.getInt('user_id') ?? 0;
+
+      try {
+        final response = await http.post(
+          Uri.parse('https://graduation-project-production-39f0.up.railway.app/update_tracking_request'),
+          headers: {"Content-Type": "application/json"},
+          body: jsonEncode({
+            "from_user_id": fromUserId,
+            "to_user_id": myUserId,
+            "status": status
+          }),
+        );
+
+        if (response.statusCode == 200) {
+          print("Tracking request updated.");
+        } else {
+          print("Failed to update request: ${response.statusCode}");
+        }
+      } catch (e) {
+        print("Error updating tracking request: $e");
+      }
+    }
+    void _startSendingLocationUpdates(int fromUserId) {
+      if (_sendingLocation) return; // Prevent multiple timers
+
+      _sendingLocation = true;
+      _sendLocationTimer = Timer.periodic(Duration(minutes: 30), (timer) async {
+        if (userLocation == null) return;
+
+        final coords = userLocation!.coordinates.toJson();
+        print("Sending location to $fromUserId: ${coords[1]}, ${coords[0]}");
+
+        // مثال — هنا لو عندك API مخصوص للـ location updates ابعته (لسه مش عملناها في السيرفر)
+        // أنا بحط هنا print بس، انت ممكن تبني API جديدة لو حبيت.
+      });
+    }
+    void _stopSharing_ForTracking() {
+      setState(() {
+        isTracking = false;
+        trackingUserId = null;
+        _sendingLocation = false;
+        _sendLocationTimer?.cancel();
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Stopped sharing location")),
+      );
+    }
+
 
   Future<void> _initLocationListener() async {
     // 1) Ensure service & permission
