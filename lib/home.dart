@@ -1,7 +1,4 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 import 'package:location/location.dart';
@@ -12,7 +9,6 @@ import 'api/api_service.dart';     // if you still need it
 import 'components/go_button.dart'; // updated GO button
 import 'chat.dart';
 import 'make_complaint_screen.dart';
-import 'package:flutter/services.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -34,32 +30,9 @@ class _HomeScreenState extends State<HomeScreen> {
   Location _location = Location(); // Location plugin
   Point? userLocation;       // Latest user location
 
-  // 1) Define all 11 station coordinates:
-  final Map<String, Point> stationCoordinates = {
-    'الكيلو 21'    : Point(coordinates: Position(29.732364031977227, 31.076940002163834)),
-    'الهانوفيل'   : Point(coordinates: Position(29.7737962897978,   31.100660476700302)),
-    'البيطاش'     : Point(coordinates: Position(29.794616029183466, 31.114673018531825)),
-    'محطة مصر'    : Point(coordinates: Position(29.902791889923858, 31.192916486699772)),
-    'المنشية'     : Point(coordinates: Position(29.77419867844223,  31.102908974291907)),
-    'الموقف'      : Point(coordinates: Position(29.91418429325476,  31.177764223393417)),
-    'سموحة'       : Point(coordinates: Position(29.941992632377847, 31.215586816840094)),
-    'محطة الرمل'  : Point(coordinates: Position(29.89918175001191,  31.200467931344026)),
-    'الشاطبي'     : Point(coordinates: Position(29.909911356144615, 31.205853504540226)),
-    'العوايد'     : Point(coordinates: Position(29.993849433492482, 31.22019370556297)),
-    'العصافرة 45' : Point(coordinates: Position(30.00586772502079,  31.26402506209855)),
-  };
-
-  // 2) A line‐manager to draw polylines on the map:
-  LineAnnotationManager? _lineManager;
-
   @override
   void initState() {
     super.initState();
-    // Make status bar transparent
-    SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle(
-      statusBarColor: Colors.transparent,
-      statusBarIconBrightness: Brightness.dark, // لو الماب فاتحة، لو غامقة حط Brightness.light
-    ));
     _initLocationListener();
   }
 
@@ -93,28 +66,6 @@ class _HomeScreenState extends State<HomeScreen> {
       LocationComponentSettings(
         enabled: true,
         pulsingEnabled: false,
-      ),
-    );
-    // initialize our line‐annotation manager
-    _lineManager = LineAnnotationManager(
-        controller.annotations.createLineAnnotationManager()
-    );
-  }
-
-  // ===================== Helper to draw walking route =====================
-  Future<void> _drawRoute(List<Position> route) async {
-    if (_lineManager == null) return;
-    // clear any existing route
-    await _lineManager!.deleteAll();
-
-    // map Position → [lng, lat]
-    final coords = route.map((p) => [p.longitude, p.latitude]).toList();
-
-    await _lineManager!.create(
-      LineAnnotationOptions(
-        geometry: coords,
-        lineColor: "#175579",
-        lineWidth: 4.0,
       ),
     );
   }
@@ -238,42 +189,16 @@ class _HomeScreenState extends State<HomeScreen> {
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
-                    onPressed: () async {
+                    onPressed: () {
                       if (userId.isEmpty) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(content: Text("Please enter a User ID")),
                         );
                         return;
                       }
-                      final prefs = await SharedPreferences.getInstance();
-                      final myUserId = prefs.getInt('user_id') ?? 0;
-
-                      // 1️⃣ ابعت request للـ backend
-                      try {
-                        final response = await http.post(
-                          Uri.parse('https://graduation-project-production-39f0.up.railway.app/send_tracking_request'), // عدل هنا ال link بتاعك
-                          headers: {"Content-Type": "application/json"},
-                          body: jsonEncode({
-                            "from_user_id": myUserId, // هتحط هنا ال user_id بتاع ال user اللي عامل request (3 مثلا)
-                            "to_user_id": int.parse(userId),
-                          }),
-                        );
-
-                        if (response.statusCode == 201) {
-                          Navigator.pop(context);
-                          _startLiveTracking(userId);
-                        } else {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text("Failed to send request: ${response.statusCode}")),
-                          );
-                        }
-                      } catch (e) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text("Error sending request: $e")),
-                        );
-                      }
+                      Navigator.pop(context);
+                      _startLiveTracking(userId);
                     },
-
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF175579),
                       padding: const EdgeInsets.symmetric(vertical: 14.0),
@@ -633,20 +558,17 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
- 
   // ===================== Main Build =====================
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       key: _scaffoldKey,
-
       drawer: _buildDrawer(),
       resizeToAvoidBottomInset: false,
       body: MediaQuery.removePadding(
         context: context,
         removeTop: true,
         removeBottom: true,
-
         child: Stack(
           children: [
             // Map
@@ -660,37 +582,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
             ),
-            // 👇 الصورة floating فوق
-            Positioned(
-              top: 40,
-              left: 20,
-              child: GestureDetector(
-                onTap: () {
-                  _scaffoldKey.currentState?.openDrawer();
-                },
-                child: Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black26,
-                        blurRadius: 6,
-                      ),
-                    ],
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: Image.asset(
-                      'assets/salkah_logo.png',
-                      fit: BoxFit.contain,
-                    ),
-                  ),
-                ),
-              ),
-            ),
+
             // Bottom panel with GO button & selectors:
             Align(
               alignment: Alignment.bottomCenter,
@@ -723,7 +615,6 @@ class _HomeScreenState extends State<HomeScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              // STARTING POINT selector
                               GestureDetector(
                                 onTap: () => _selectLocation(true),
                                 child: _buildLocationRow(
@@ -735,7 +626,6 @@ class _HomeScreenState extends State<HomeScreen> {
                               Row(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  // ENDING POINT selector
                                   Expanded(
                                     child: GestureDetector(
                                       onTap: () => _selectLocation(false),
@@ -744,83 +634,16 @@ class _HomeScreenState extends State<HomeScreen> {
                                     ),
                                   ),
                                   const SizedBox(width: 16),
-                                  // NEW GO button
                                   SizedBox(
-                                    width: 80, height: 50,
-                                    child: ElevatedButton(
-                                      onPressed: () async {
-                                        // a) draw walking route
-                                        final destPoint = stationCoordinates[destination];
-                                        if (userLocation != null && destPoint != null) {
-                                          final route = await ApiService.fetchRoute(
-                                            start: userLocation!,
-                                            end: destPoint,
-                                            profile: 'walking',
-                                          );
-                                          await _drawRoute(route);
-                                        }
-
-                                        // b) now fetch waiting time
-                                        final hour = DateTime.now().hour;
-                                        final timeOfDay = hour < 9
-                                            ? "From 6 AM To 9 AM"
-                                            : hour < 12
-                                            ? "From 9 AM To 12 PM"
-                                            : hour < 15
-                                            ? "From 12 PM To 3 PM"
-                                            : hour < 18
-                                            ? "From 3 PM To 6 PM"
-                                            : "From 6 PM To 9 PM";
-                                        final now = DateTime.now();
-                                        final isWeekend = (now.weekday == DateTime.friday ||
-                                            now.weekday == DateTime.saturday)
-                                            ? "yes"
-                                            : "no";
-
-                                        final result = await ApiService.fetchWaitingTime(
-                                          age: 23,
-                                          gender: "female",
-                                          from: destination,
-                                          to: destination,
-                                          time: timeOfDay,
-                                          isRainy: "no",
-                                          isWeekend: isWeekend,
-                                        );
-
-                                        if (!mounted) return;
-                                        if (result != null) {
-                                          showDialog(
-                                            context: context,
-                                            builder: (_) => AlertDialog(
-                                              title: const Text("Waiting Time"),
-                                              content: Text(result),
-                                              actions: [
-                                                TextButton(
-                                                  onPressed: () => Navigator.pop(context),
-                                                  child: const Text("OK"),
-                                                ),
-                                              ],
-                                            ),
-                                          );
-                                        } else {
-                                          ScaffoldMessenger.of(context).showSnackBar(
-                                            const SnackBar(
-                                              content: Text("Failed to fetch waiting time"),
-                                            ),
-                                          );
-                                        }
-                                      },
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: const Color(0xFF175579),
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(30),
-                                        ),
-                                      ),
-                                      child: const Text("GO",
-                                          style: TextStyle(
-                                              fontSize: 16,
-                                              color: Colors.white)),
+                                    width: 80,
+                                    height: 50,
+                                    child: buildGoButton(
+                                      context: context,
+                                      mapController: mapboxMap!,
+                                      currentLocation: userLocation,
+                                      destination: destination,
                                     ),
+
                                   ),
                                 ],
                               ),
@@ -891,38 +714,38 @@ class _HomeScreenState extends State<HomeScreen> {
 
             const Spacer(), // يخلي الزرار اللي تحت دايما تحت
 
-        Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF3E6E8C),
-                foregroundColor: const Color(0xFFFFFFFF),
-                padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF3E6E8C),
+                    foregroundColor: const Color(0xFFFFFFFF),
+                    padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  onPressed: () async {
+                    final prefs = await SharedPreferences.getInstance();
+                    await prefs.clear();
+                    Navigator.pushReplacementNamed(context, '/signin');
+                  },
+                  child: Padding(
+                    padding: const EdgeInsetsDirectional.only(start: 55), // مسافة من الحافة
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.start,
+                      children: const [
+                        Icon(Icons.logout),
+                        SizedBox(width: 12),
+                        Text("Logout", style: TextStyle(fontSize: 16)),
+                      ],
+                    ),
+                  ),
                 ),
               ),
-              onPressed: () async {
-                final prefs = await SharedPreferences.getInstance();
-                await prefs.clear();
-                Navigator.pushReplacementNamed(context, '/signin');
-              },
-              child: Padding(
-                padding: const EdgeInsetsDirectional.only(start: 55), // مسافة من الحافة
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.start,
-                  children: const [
-                    Icon(Icons.logout),
-                    SizedBox(width: 12),
-                    Text("Logout", style: TextStyle(fontSize: 16)),
-                  ],
-                ),
-              ),
-              ),
-            ),
-        )],
+            )],
         ),
       ),
     );
