@@ -6,12 +6,14 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 import 'package:location/location.dart';
 
+
 import 'AccountScreen.dart';
 import 'mapbox_view.dart';         // our helper widget
 import 'api/api_service.dart';     // if you still need it
 import 'components/go_button.dart'; // updated GO button
 import 'chat.dart';
 import 'make_complaint_screen.dart';
+import 'package:flutter/services.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -34,8 +36,16 @@ class _HomeScreenState extends State<HomeScreen> {
   Point? userLocation;       // Latest user location
 
   @override
+  @override
   void initState() {
     super.initState();
+
+    // Make status bar transparent
+    SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.dark, // لو الماب فاتحة، لو غامقة حط Brightness.light
+    ));
+
     _initLocationListener();
   }
 
@@ -606,6 +616,36 @@ class _HomeScreenState extends State<HomeScreen> {
                 cameraOptions: CameraOptions(
                   center: Point(coordinates: Position(29.9187, 31.2001)),
                   zoom: 13.0,
+                ),
+              ),
+            ),
+            Positioned(
+              top: 40,
+              left: 20,
+              child: GestureDetector(
+                onTap: () {
+                  _scaffoldKey.currentState?.openDrawer();
+                },
+                child: Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black26,
+                        blurRadius: 6,
+                      ),
+                    ],
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: Image.asset(
+                      'assets/salkah_logo.png',
+                      fit: BoxFit.contain,
+                    ),
+                  ),
                 ),
               ),
             ),
