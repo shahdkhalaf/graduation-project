@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 import '../api/api_service.dart';
 
-/// Mapping from station names → [lng, lat].
+/// Station name → [lng, lat].
 const Map<String, List<double>> _stationCoords = {
   'الكيلو 21'   : [29.732364031977227, 31.076940002163834],
   'الهانوفيل'  : [29.7737962897978,   31.100660476700302],
@@ -21,21 +21,42 @@ const Map<String, List<double>> _stationCoords = {
   'العصافرة 45': [30.00586772502079,  31.26402506209855],
 };
 
-/// A GO button that:
-/// 1) If user is >50 m from the chosen station, draws a walking route.
-/// 2) Then calls your waiting-time API, parses Q25/Q50/Q75, and shows it.
+/// Build a GO button that:
+/// 1) Picks whichever station name you tapped (STARTING or ENDING).
+/// 2) If you're >50 m away, draws a walking route to it.
+/// 3) Fetches Q25/Q50/Q75 from your API and shows median + IQR.
 Widget buildGoButton({
   required BuildContext context,
   required MapboxMap mapController,
   required Point? currentLocation,
+  required String startingPoint,
   required String destination,
 }) {
   return ElevatedButton(
     onPressed: () async {
-      // 1. Determine “at station” (within ~50 m?)
+      // --- Pick your station name ---
+      // If you tapped STARTING POINT and it's one of ours, use that;
+      // otherwise fall back to ENDING POINT.
+      final stationName = _stationCoords.containsKey(startingPoint)
+          ? startingPoint
+          : (_stationCoords.containsKey(destination)
+          ? destination
+          : null);
+
+      if (stationName == null) {
+        // no valid station selected
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text("Please select a valid station first.")),
+        );
+        return;
+      }
+
+      final sc = _stationCoords[stationName]!;
+
+      // --- Are we already *at* the station? (~50 m threshold) ---
       bool atStation = false;
-      final sc = _stationCoords[destination];
-      if (currentLocation != null && sc != null) {
+      if (currentLocation != null) {
         final curr = currentLocation.toJson(); // [lng, lat]
         final dx = (curr[0] - sc[0]).abs();
         final dy = (curr[1] - sc[1]).abs();
@@ -43,8 +64,8 @@ Widget buildGoButton({
         atStation = meters < 50;
       }
 
-      // 2. If not at station, overlay walking route
-      if (!atStation && currentLocation != null && sc != null) {
+      // --- Draw walking route if you're not already there ---
+      if (!atStation && currentLocation != null) {
         final geojson = jsonEncode({
           "type": "FeatureCollection",
           "features": [
@@ -54,29 +75,32 @@ Widget buildGoButton({
                 "type": "LineString",
                 "coordinates": [
                   currentLocation.toJson(),
-                  sc
+                  sc,
                 ]
               }
             }
           ]
         });
 
+        // upsert the source:
         await mapController.style.addSource(
           GeoJsonSource(id: "route-source", data: geojson),
         );
+
+        // then upsert the line layer:
         await mapController.style.addLayer(
           LineLayer(
             id: "route-layer",
             sourceId: "route-source",
-            lineColor: Color(0xFF175579).value, // int
-            lineWidth: 4.0,                    // double
+            lineColor: Color(0xFF175579).value,
+            lineWidth: 4.0,
             lineJoin: LineJoin.ROUND,
             lineCap: LineCap.ROUND,
           ),
         );
       }
 
-      // 3. Fetch waiting-time and parse percentiles
+      // --- Now fetch waiting time at that station ---
       final hour = DateTime.now().hour;
       final timeOfDay = hour < 9
           ? "From 6 AM To 9 AM"
@@ -96,12 +120,13 @@ Widget buildGoButton({
       final raw = await ApiService.fetchWaitingTime(
         age: 23,
         gender: "female",
-        from: destination,
-        to: destination,
-        time: timeOfDay,
-        isRainy: "no",
+        from: stationName,   // use the station name
+        to:   stationName,   // same
+        time:     timeOfDay,
+        isRainy:  "no",
         isWeekend: isWeekend,
       );
+
       if (raw == null) {
         if (!context.mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
@@ -110,14 +135,14 @@ Widget buildGoButton({
         return;
       }
 
-      // Parse the JSON string:
-      final Map<String, dynamic> body = jsonDecode(raw);
+      // parse the three-percentiles:
+      final body = jsonDecode(raw) as Map<String, dynamic>;
       final q25 = (body['Q25_prediction'] as List).first as num;
       final q50 = (body['Q50_prediction'] as List).first as num;
       final q75 = (body['Q75_prediction'] as List).first as num;
 
-      // Build a user‐friendly message:
       final message = StringBuffer()
+        ..writeln("Station: $stationName")
         ..writeln("Median wait: ${q50.toInt()} mins")
         ..writeln("IQR: ${q25.toInt()}–${q75.toInt()} mins");
 
@@ -131,7 +156,7 @@ Widget buildGoButton({
             TextButton(
               onPressed: () => Navigator.pop(context),
               child: const Text("OK"),
-            )
+            ),
           ],
         ),
       );
@@ -146,6 +171,7 @@ Widget buildGoButton({
     child: const Text("GO", style: TextStyle(fontSize: 16, color: Colors.white)),
   );
 }
+
 
 
 
