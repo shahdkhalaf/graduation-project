@@ -1,4 +1,7 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 import 'package:location/location.dart';
@@ -189,15 +192,39 @@ class _HomeScreenState extends State<HomeScreen> {
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
-                    onPressed: () {
+                    onPressed: () async {
                       if (userId.isEmpty) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(content: Text("Please enter a User ID")),
                         );
                         return;
                       }
-                      Navigator.pop(context);
-                      _startLiveTracking(userId);
+                      final prefs = await SharedPreferences.getInstance();
+                      final myUserId = prefs.getInt('user_id') ?? 0;
+                      // 1️⃣ ابعت request للـ backend
+                      try {
+                        final response = await http.post(
+                          Uri.parse('https://YOUR_BACKEND_URL/send_tracking_request'), // عدل هنا ال link بتاعك
+                          headers: {"Content-Type": "application/json"},
+                          body: jsonEncode({
+                            "from_user_id": myUserId, // هتحط هنا ال user_id بتاع ال user اللي عامل request (3 مثلا)
+                            "to_user_id": int.parse(userId),
+                          }),
+                        );
+
+                        if (response.statusCode == 201) {
+                          Navigator.pop(context);
+                          _startLiveTracking(userId);
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text("Failed to send request: ${response.statusCode}")),
+                          );
+                        }
+                      } catch (e) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text("Error sending request: $e")),
+                        );
+                      }
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF175579),
@@ -635,27 +662,28 @@ class _HomeScreenState extends State<HomeScreen> {
                                   ),
                                   const SizedBox(width: 16),
                                   SizedBox(
-                                    width: 80, height: 50,
+                                    width: 80,
+                                    height: 50,
                                     child: mapboxMap == null
-                                    // show a disabled button (or a spinner) until the map is ready
+                                    // disabled until the map is ready
                                         ? ElevatedButton(
                                       onPressed: null,
                                       style: ElevatedButton.styleFrom(
                                         backgroundColor: Colors.grey.shade400,
-                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(30),
+                                        ),
                                       ),
                                       child: const Text("GO", style: TextStyle(color: Colors.white)),
                                     )
-                                    // once mapboxMap is non-null, wire up the real GO button
+                                    // once mapController is non-null, wire up the real GO button
                                         : buildGoButton(
                                       context: context,
-                                      mapController: mapboxMap!,
-                                      currentLocation: userLocation,
-                                      startingPoint: startingPoint,    // ← new!
-                                      destination: destination,
+                                      mapController:     mapboxMap!,
+                                      currentLocation:   userLocation,
+                                      destination:       destination,
                                     ),
-                                  ),
-                                ],
+                                    )],
                               ),
                             ],
                           ),

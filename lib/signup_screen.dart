@@ -88,14 +88,17 @@ class _SignUpScreenState extends State<SignUpScreen> {
       if (response.statusCode == 201) {
         // Success → navigate to CongratulationsScreen
         setState(() => _isLoading = false);
+        final responseData = jsonDecode(response.body);
         final prefs = await SharedPreferences.getInstance();
         prefs.setString('user_email', _emailController.text.trim());
+        prefs.setInt('user_id', responseData['user']['user_id']);
 
         Navigator.push(
           context,
           MaterialPageRoute(builder: (context) => const CongratulationsScreen()),
         );
-      } else {
+      }
+      else {
         // Backend returned error (e.g. 400/409). Show the “error” field if present.
         final body = jsonDecode(response.body);
         final serverMsg = body['error'] ?? 'Unknown error';
