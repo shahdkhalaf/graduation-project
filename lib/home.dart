@@ -38,7 +38,6 @@ class _HomeScreenState extends State<HomeScreen> {
   Point? userLocation; // Latest user location
 
   @override
-  @override
   void initState() {
     super.initState();
 
@@ -51,8 +50,15 @@ class _HomeScreenState extends State<HomeScreen> {
 
     _initLocationListener();
     _startCheckingRequestsTimer();
-  }
+    _checkPendingTrackingRequests();
 
+  }
+  @override
+  void dispose() {
+    _checkRequestsTimer?.cancel();
+    _sendLocationTimer?.cancel();
+    super.dispose();
+  }
   void _startCheckingRequestsTimer() {
     _checkRequestsTimer?.cancel();
     _checkRequestsTimer = Timer.periodic(Duration(seconds: 15), (timer) async {
@@ -72,9 +78,10 @@ class _HomeScreenState extends State<HomeScreen> {
           if (requests.isNotEmpty) {
             final req = requests.first;
             final fromUserId = req['from_user_id'];
+            final toUserId = req['to_user_id'];
 
             _checkRequestsTimer?.cancel();
-            _showIncomingTrackingRequestDialog(fromUserId);
+            _showIncomingTrackingRequestDialog(fromUserId: fromUserId, toUserId: toUserId);
           }
         }
       } catch (e) {
@@ -83,7 +90,7 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
-  void _showIncomingTrackingRequestDialog(int fromUserId) {
+  void _showIncomingTrackingRequestDialog({required String fromUserId, required String toUserId}) {
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -94,18 +101,32 @@ class _HomeScreenState extends State<HomeScreen> {
           actions: [
             TextButton(
               onPressed: () async {
-                await _updateTrackingRequest(fromUserId, 2); // Reject
                 Navigator.pop(context);
-                _startCheckingRequestsTimer();
+                await  _updateTrackingRequest(int.parse(fromUserId),int.parse(toUserId));
+
+                // خزّن التتبع في SharedPreferences
+                final prefs = await SharedPreferences.getInstance();
+                await prefs.setInt('tracking_from', int.parse(fromUserId));
+                await prefs.setInt('tracking_to', int.parse(toUserId));
+
+                // فعّل التراكينج
+                setState(() {
+                  isTracking = true;
+                  trackingUserId = fromUserId;
+                });
+
+                // ابدأ إرسال اللوكيشن
+                _startSendingLocationUpdates();
               },
-              child: const Text("Reject"),
+              child: const Text("Accept"),
             ),
+
             TextButton(
               onPressed: () async {
-                await _updateTrackingRequest(fromUserId, 1); // Accept
+                await _updateTrackingRequest(int.parse(fromUserId), 1);
                 Navigator.pop(context);
                 _startCheckingRequestsTimer();
-                _startSendingLocationUpdates(fromUserId);
+                _startSendingLocationUpdates();
               },
               child: const Text("Accept"),
             ),
@@ -115,46 +136,23 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Future<void> _updateTrackingRequest(int fromUserId, int status) async {
-    final prefs = await SharedPreferences.getInstance();
-    final myUserId = prefs.getInt('user_id') ?? 0;
 
-    try {
-      final response = await http.post(
-        Uri.parse(
-            'https://graduation-project-production-39f0.up.railway.app/update_tracking_request'),
-        headers: {"Content-Type": "application/json"},
-        body: jsonEncode({
-          "from_user_id": fromUserId,
-          "to_user_id": myUserId,
-          "status": status
-        }),
-      );
-
-      if (response.statusCode == 200) {
-        print("Tracking request updated.");
-      } else {
-        print("Failed to update request: ${response.statusCode}");
-      }
-    } catch (e) {
-      print("Error updating tracking request: $e");
-    }
-  }
-
-  void _startSendingLocationUpdates(int fromUserId) {
-    if (_sendingLocation) return; // Prevent multiple timers
+  void _startSendingLocationUpdates() {
+    if (_sendingLocation) return;
 
     _sendingLocation = true;
-    _sendLocationTimer = Timer.periodic(Duration(minutes: 30), (timer) async {
-      if (userLocation == null) return;
+
+    _sendLocationTimer = Timer.periodic(const Duration(seconds: 5), (timer) async {
+      if (userLocation == null || trackingUserId == null) return;
 
       final coords = userLocation!.coordinates.toJson();
-      print("Sending location to $fromUserId: ${coords[1]}, ${coords[0]}");
+      print("📍 Sending location to user $trackingUserId: ${coords[1]}, ${coords[0]}");
 
-      // مثال — هنا لو عندك API مخصوص للـ location updates ابعته (لسه مش عملناها في السيرفر)
-      // أنا بحط هنا print بس، انت ممكن تبني API جديدة لو حبيت.
+      // ✨ هنا ممكن تبعت API حقيقية لو عملت endpoint في السيرفر
+      // await http.post(...);
     });
   }
+
 
   void _stopSharing_ForTracking() {
     setState(() {
@@ -190,6 +188,84 @@ class _HomeScreenState extends State<HomeScreen> {
         startingPoint = "${lat.toStringAsFixed(5)}, ${lng.toStringAsFixed(5)}";
       });
     });
+  }
+
+  Future<void> _checkPendingTrackingRequests() async {
+    print("📌 Checking tracking requests...");
+
+    final prefs = await SharedPreferences.getInstance();
+    final myUserId = prefs.getInt('user_id') ?? 0;
+    print("🧠 My user ID: $myUserId");
+
+    try {
+      final response = await http.get(Uri.parse(
+        'https://graduation-project-production-39f0.up.railway.app/check_tracking_requests?user_id=$myUserId',
+      ));
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final requests = data['requests'];
+
+        if (requests != null && requests.isNotEmpty) {
+          final fromId = requests[0]['from_user_id'];
+          _showAcceptRejectDialog(fromId);
+        }
+      } else {
+        print("❌ Failed to check requests: ${response.statusCode}");
+      }
+    } catch (e) {
+      print("❌ Error checking requests: $e");
+    }
+  }
+
+  void _showAcceptRejectDialog(int fromUserId) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Live Tracking Request"),
+        content: Text("User $fromUserId wants to track you. Accept?"),
+        actions: [
+          TextButton(
+            onPressed: () {
+              _updateTrackingRequest(fromUserId, 0); // رفض
+              Navigator.pop(context);
+            },
+            child: const Text("Reject"),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              _updateTrackingRequest(fromUserId, 1); // قبول
+              Navigator.pop(context);
+              _startLiveTracking(fromUserId.toString()); // يبدأ تتبع
+            },
+            child: const Text("Accept"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _updateTrackingRequest(int fromUserId, int status) async {
+    final prefs = await SharedPreferences.getInstance();
+    final toUserId = prefs.getInt('user_id') ?? 0;
+
+    try {
+      final response = await http.post(
+        Uri.parse('https://graduation-project-production-39f0.up.railway.app/update_tracking_request'),
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({
+          "from_user_id": fromUserId,
+          "to_user_id": toUserId,
+          "status": status,
+        }),
+      );
+
+      if (response.statusCode != 200) {
+        print("Failed to update request: ${response.statusCode}");
+      }
+    } catch (e) {
+      print("Error updating request: $e");
+    }
   }
 
   void _onMapCreated(MapboxMap controller) {
@@ -400,12 +476,70 @@ class _HomeScreenState extends State<HomeScreen> {
       },
     );
   }
+  Future<bool> _checkIfTrackingAccepted(int fromUserId, int toUserId) async {
+    final response = await http.get(Uri.parse(
+      'https://graduation-project-production-39f0.up.railway.app/check_tracking_requests?user_id=$toUserId',
+    ));
 
-  Future<void> _startLiveTracking(String userId) async {
-    _showWaitingDialog(userId);
-    await Future.delayed(const Duration(seconds: 5));
+    if (response.statusCode == 200) {
+      final requests = jsonDecode(response.body)['requests'];
+      for (var req in requests) {
+        if (req['from_user_id'] == fromUserId &&
+            req['to_user_id'] == toUserId &&
+            req['Status'] == 1) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  Future<void> _startLiveTracking(String toUserId) async {
+    final prefs = await SharedPreferences.getInstance();
+    final fromUserId = prefs.getInt('user_id') ?? 0;
+
+    // 1. خزّن البيانات
+    await prefs.setInt('tracking_from', fromUserId);
+    await prefs.setInt('tracking_to', int.parse(toUserId));
+
+    // 2. اعرض ديالوج انتظار
+    _showWaitingDialog(toUserId);
+
+    // 3. راقب كل شوية لو الطرف التاني وافق
+    bool accepted = false;
+    for (int i = 0; i < 10; i++) {
+      await Future.delayed(Duration(seconds: 3));
+      final acceptedStatus = await _checkIfTrackingAccepted(fromUserId, int.parse(toUserId));
+      if (acceptedStatus) {
+        accepted = true;
+        break;
+      }
+    }
+
+    // 4. اقفل الانتظار وابدأ التتبع
     Navigator.of(context, rootNavigator: true).pop();
-    _showTrackingConfirmation(userId);
+
+    if (accepted) {
+      setState(() {
+        isTracking = true;
+        trackingUserId = toUserId;
+      });
+      _startSendingLocationUpdates();
+      _showTrackingConfirmation(toUserId);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Request not accepted yet.")),
+      );
+    }
+  }
+
+  Future<bool> _shouldShowStopSharingButton() async {
+    final prefs = await SharedPreferences.getInstance();
+    final currentUserId = prefs.getInt('user_id') ?? 0;
+    final fromId = prefs.getInt('tracking_from') ?? -1;
+    final toId = prefs.getInt('tracking_to') ?? -1;
+
+    return currentUserId == fromId || currentUserId == toId;
   }
 
   void _showWaitingDialog(String userId) {
@@ -499,7 +633,7 @@ class _HomeScreenState extends State<HomeScreen> {
               const EdgeInsets.symmetric(horizontal: 25, vertical: 150),
           child: Stack(
             children: [
-              Padding(
+              SingleChildScrollView(
                 padding: const EdgeInsets.all(20),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -509,7 +643,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     const Text(
                       "Live Tracking Started",
                       style: TextStyle(
-                        fontSize: 20,
+                        fontSize: 10,
                         fontWeight: FontWeight.bold,
                         color: Colors.black,
                       ),
@@ -561,7 +695,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                           TextSpan(
                               text:
-                                  ".\nYou can continue exploring the app while tracking runs in the background."),
+                              ".\nYou can continue exploring the app while tracking runs in the background."),
                         ],
                       ),
                     ),
@@ -577,6 +711,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ],
           ),
+
         );
       },
     );
@@ -700,6 +835,37 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  Widget buildStopSharingButton() {
+    return FutureBuilder<bool>(
+      future: _shouldShowStopSharingButton(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.done &&
+            isTracking &&
+            snapshot.data == true) {
+          return Positioned(
+            top: 40,
+            right: 20,
+            child: ElevatedButton(
+              onPressed: _stopSharing_ForTracking,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Color(0xFF175579),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: const Text(
+                "STOP SHARING",
+                style: TextStyle(fontSize: 16, color: Colors.white),
+              ),
+            ),
+          );
+        }
+        return const SizedBox.shrink();
+      },
+    );
+  }
+
   Widget _buildDashedLine() {
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -753,6 +919,7 @@ class _HomeScreenState extends State<HomeScreen> {
         removeBottom: true,
         child: Stack(
           children: [
+
             // Map
             Positioned.fill(
               child: MapboxView(
@@ -765,6 +932,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
 
+            buildStopSharingButton(),
             // Drawer button
             Positioned(
               top: 40,
@@ -798,26 +966,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
 
             // ✅ زر STOP SHARING
-            if (isTracking)
-              Positioned(
-                top: 40,
-                right: 20,
-                child: ElevatedButton(
-                  onPressed: _stopSharing_ForTracking,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.red,
-                    padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: const Text(
-                    "STOP SHARING",
-                    style: TextStyle(fontSize: 16, color: Colors.white),
-                  ),
-                ),
-              ),
+
 
             // Bottom panel with GO button & selectors
             Align(
