@@ -764,6 +764,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
             ),
+
+            // Drawer button
             Positioned(
               top: 40,
               left: 20,
@@ -787,7 +789,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: Padding(
                     padding: const EdgeInsets.all(8.0),
                     child: Image.asset(
-                      'assets/salkah_logo.png',
+                      'assets/Button dash.png',
                       fit: BoxFit.contain,
                     ),
                   ),
@@ -795,12 +797,33 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
 
-            // Bottom panel with GO button & selectors:
+            // ✅ زر STOP SHARING
+            if (isTracking)
+              Positioned(
+                top: 40,
+                right: 20,
+                child: ElevatedButton(
+                  onPressed: _stopSharing_ForTracking,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red,
+                    padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: const Text(
+                    "STOP SHARING",
+                    style: TextStyle(fontSize: 16, color: Colors.white),
+                  ),
+                ),
+              ),
+
+            // Bottom panel with GO button & selectors
             Align(
               alignment: Alignment.bottomCenter,
               child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 27),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 27),
                 decoration: const BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
@@ -852,28 +875,26 @@ class _HomeScreenState extends State<HomeScreen> {
                                     width: 80,
                                     height: 50,
                                     child: mapboxMap == null
-                                        // disabled until the map is ready
                                         ? ElevatedButton(
-                                            onPressed: null,
-                                            style: ElevatedButton.styleFrom(
-                                              backgroundColor:
-                                                  Colors.grey.shade400,
-                                              shape: RoundedRectangleBorder(
-                                                borderRadius:
-                                                    BorderRadius.circular(30),
-                                              ),
-                                            ),
-                                            child: const Text("GO",
-                                                style: TextStyle(
-                                                    color: Colors.white)),
-                                          )
-                                        // once mapController is non-null, wire up the real GO button
+                                      onPressed: null,
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor:
+                                        Colors.grey.shade400,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                          BorderRadius.circular(30),
+                                        ),
+                                      ),
+                                      child: const Text("GO",
+                                          style: TextStyle(
+                                              color: Colors.white)),
+                                    )
                                         : buildGoButton(
-                                            context: context,
-                                            mapController: mapboxMap!,
-                                            currentLocation: userLocation,
-                                            destination: destination,
-                                          ),
+                                      context: context,
+                                      mapController: mapboxMap!,
+                                      currentLocation: userLocation,
+                                      destination: destination,
+                                    ),
                                   )
                                 ],
                               ),
@@ -891,6 +912,7 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
+
 
   Widget _buildDrawer() {
     return Drawer(
