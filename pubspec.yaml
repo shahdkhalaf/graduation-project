@@ -93,6 +93,7 @@ flutter:
     - assets/icons/blue_dot.png
     - assets/icons/red_station.png
     - assets/icons/grey_station.png
+
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in
   # the material Icons class.

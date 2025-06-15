@@ -1072,7 +1072,7 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Container(
         color: const Color(0xFF175579), // خلفية زرقاء
         child: Column(
-          children: [
+          children: <Widget>[
             const SizedBox(height: 60), // مسافة فوق
             Image.asset(
               'assets/salkah.png',
@@ -1082,6 +1082,10 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             const SizedBox(height: 20),
 
+            _buildDrawerButton(Icons.home, "Home", () {
+              Navigator.pop(context);
+            }),
+
             _buildDrawerButton(Icons.chat, "Chat Assist", () {
               Navigator.pop(context);
               Navigator.push(
@@ -1090,7 +1094,7 @@ class _HomeScreenState extends State<HomeScreen> {
               );
             }),
 
-            _buildDrawerButton(Icons.report, "Make a Complaint", () {
+            _buildDrawerButton(Icons.report_problem, "Make a Complaint", () {
               Navigator.pop(context);
               Navigator.push(
                 context,
@@ -1098,7 +1102,7 @@ class _HomeScreenState extends State<HomeScreen> {
               );
             }),
 
-            _buildDrawerButton(Icons.person_pin_circle, "Live Tracking", () {
+            _buildDrawerButton(Icons.location_on, "Live Tracking", () {
               Navigator.pop(context);
               _showLiveTrackingDialog();
             }),
@@ -1140,12 +1144,12 @@ class _HomeScreenState extends State<HomeScreen> {
                     await prefs.clear();
                     Navigator.pushReplacementNamed(context, '/signin');
                   },
-                  child: Padding(
-                    padding: const EdgeInsetsDirectional.only(
+                  child: const Padding(
+                    padding: EdgeInsetsDirectional.only(
                         start: 55), // مسافة من الحافة
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.start,
-                      children: const [
+                      children: [
                         Icon(Icons.logout),
                         SizedBox(width: 12),
                         Text("Logout", style: TextStyle(fontSize: 16)),
