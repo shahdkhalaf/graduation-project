@@ -31,7 +31,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Timer? _sendLocationTimer;
   bool _sendingLocation = false;
   bool isTracking = false; // Live‐tracking flag
-  String? trackingUserId; // ID being tracked
+  int? trackingUserId;// ID being tracked
 
   MapboxMap? mapboxMap; // Map controller
   Location _location = Location(); // Location plugin
@@ -90,7 +90,8 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
-  void _showIncomingTrackingRequestDialog({required String fromUserId, required String toUserId}) {
+  void _showIncomingTrackingRequestDialog({required int fromUserId, required int toUserId})
+  {
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -102,12 +103,12 @@ class _HomeScreenState extends State<HomeScreen> {
             TextButton(
               onPressed: () async {
                 Navigator.pop(context);
-                await  _updateTrackingRequest(int.parse(fromUserId),int.parse(toUserId));
+                await  _updateTrackingRequest(fromUserId,toUserId);
 
                 // خزّن التتبع في SharedPreferences
                 final prefs = await SharedPreferences.getInstance();
-                await prefs.setInt('tracking_from', int.parse(fromUserId));
-                await prefs.setInt('tracking_to', int.parse(toUserId));
+                await prefs.setInt('tracking_from', fromUserId);
+                await prefs.setInt('tracking_to', toUserId);
 
                 // فعّل التراكينج
                 setState(() {
@@ -123,7 +124,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
             TextButton(
               onPressed: () async {
-                await _updateTrackingRequest(int.parse(fromUserId), 1);
+                await _updateTrackingRequest(fromUserId, 1);
                 Navigator.pop(context);
                 _startCheckingRequestsTimer();
                 _startSendingLocationUpdates();
@@ -494,7 +495,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return false;
   }
 
-  Future<void> _startLiveTracking(String toUserId) async {
+  Future<void> _startLiveTracking(toUserId) async {
     final prefs = await SharedPreferences.getInstance();
     final fromUserId = prefs.getInt('user_id') ?? 0;
 
@@ -522,10 +523,10 @@ class _HomeScreenState extends State<HomeScreen> {
     if (accepted) {
       setState(() {
         isTracking = true;
-        trackingUserId = toUserId;
+        trackingUserId = int.parse(toUserId);
       });
       _startSendingLocationUpdates();
-      _showTrackingConfirmation(toUserId);
+      _showTrackingConfirmation(git statusgtoUserId);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Request not accepted yet.")),
@@ -618,7 +619,7 @@ class _HomeScreenState extends State<HomeScreen> {
   void _showTrackingConfirmation(String userId) {
     setState(() {
       isTracking = true;
-      trackingUserId = userId;
+      trackingUserId = int.parse(userId);
     });
 
     showDialog(
