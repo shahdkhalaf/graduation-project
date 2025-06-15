@@ -72,13 +72,12 @@ class _AccountScreenState extends State<AccountScreen>
     try {
       final prefs = await SharedPreferences.getInstance();
 
-      // Load from SharedPreferences
-      final savedUserId = prefs.getString('user_id') ?? '';
+      // Load from SharedPreferences and ensure all are String
+      final savedUserId = prefs.get('user_id')?.toString() ?? '';
       final savedFirstName = prefs.getString('first_name') ?? '';
       final savedLastName = prefs.getString('last_name') ?? '';
-      final savedEmail = prefs.getString('email') ??
-          ''; // Changed from 'user_email' to 'email'
-      final savedAge = prefs.getString('age') ?? '';
+      final savedEmail = prefs.getString('email') ?? '';
+      final savedAge = prefs.get('age')?.toString() ?? '';
       final savedGender = prefs.getString('gender') ?? '';
       final savedDistrict = prefs.getString('district') ?? '';
 
@@ -722,3 +721,4 @@ class _AccountScreenState extends State<AccountScreen>
     );
   }
 }
+
