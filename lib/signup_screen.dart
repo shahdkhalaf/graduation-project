@@ -1,9 +1,11 @@
 // lib/signup_screen.dart
 import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'congratulations_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+import 'congratulations_screen.dart';
 
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({Key? key}) : super(key: key);
@@ -57,7 +59,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
         _selectedDistrict == null ||
         _selectedGender == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please fill all fields and agree to the terms')),
+        const SnackBar(
+            content: Text('Please fill all fields and agree to the terms')),
       );
       return;
     }
@@ -71,13 +74,15 @@ class _SignUpScreenState extends State<SignUpScreen> {
       "email": _emailController.text.trim(),
       "password": _passwordController.text,
       "age": _ageController.text.trim(),
-      "gendar": _selectedGender!.toLowerCase(), // match backend field name “gendar”
+      "gendar":
+          _selectedGender!.toLowerCase(), // match backend field name “gendar”
       "district": _selectedDistrict!
     };
 
     try {
       // Replace this URL with your Railway signup endpoint
-      final uri = Uri.parse("https://graduation-project-production-39f0.up.railway.app/signup");
+      final uri = Uri.parse(
+          "https://graduation-project-production-39f0.up.railway.app/signup");
       final response = await http.post(
         uri,
         headers: {"Content-Type": "application/json"},
@@ -95,10 +100,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (context) => const CongratulationsScreen()),
+          MaterialPageRoute(
+              builder: (context) => const CongratulationsScreen()),
         );
-      }
-      else {
+      } else {
         // Backend returned error (e.g. 400/409). Show the “error” field if present.
         final body = jsonDecode(response.body);
         final serverMsg = body['error'] ?? 'Unknown error';
@@ -193,7 +198,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                 hint: "District",
                                 value: _selectedDistrict,
                                 items: _districtOptions,
-                                onChanged: (val) => setState(() => _selectedDistrict = val),
+                                onChanged: (val) =>
+                                    setState(() => _selectedDistrict = val),
                               ),
                             ],
                           ),
@@ -210,7 +216,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                 hint: "Gender",
                                 value: _selectedGender,
                                 items: _genderOptions,
-                                onChanged: (val) => setState(() => _selectedGender = val),
+                                onChanged: (val) =>
+                                    setState(() => _selectedGender = val),
                               ),
                             ],
                           ),
@@ -228,7 +235,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                 keyboardType: TextInputType.number,
                                 decoration: InputDecoration(
                                   hintText: "Enter your age",
-                                  hintStyle: TextStyle(color: Colors.grey.shade400),
+                                  hintStyle:
+                                      TextStyle(color: Colors.grey.shade400),
                                   filled: true,
                                   fillColor: Colors.white,
                                   contentPadding: const EdgeInsets.symmetric(
@@ -237,11 +245,13 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                   ),
                                   border: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(10),
-                                    borderSide: BorderSide(color: Colors.grey.shade300, width: 1),
+                                    borderSide: BorderSide(
+                                        color: Colors.grey.shade300, width: 1),
                                   ),
                                   focusedBorder: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(10),
-                                    borderSide: BorderSide(color: Colors.grey.shade300, width: 1),
+                                    borderSide: BorderSide(
+                                        color: Colors.grey.shade300, width: 1),
                                   ),
                                 ),
                                 validator: (value) {
@@ -328,22 +338,24 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     _isLoading
                         ? const Center(child: CircularProgressIndicator())
                         : SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: _createAccount,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF175579),
-                          padding: const EdgeInsets.symmetric(vertical: 16.0),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(30),
+                            width: double.infinity,
+                            child: ElevatedButton(
+                              onPressed: _createAccount,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF175579),
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 16.0),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(30),
+                                ),
+                              ),
+                              child: const Text(
+                                "Create account",
+                                style: TextStyle(
+                                    fontSize: 16, color: Colors.white),
+                              ),
+                            ),
                           ),
-                        ),
-                        child: const Text(
-                          "Create account",
-                          style: TextStyle(fontSize: 16, color: Colors.white),
-                        ),
-                      ),
-                    ),
                   ],
                 ),
               ),
@@ -380,7 +392,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
         hintStyle: TextStyle(color: Colors.grey.shade400),
         filled: true,
         fillColor: Colors.white,
-        contentPadding: const EdgeInsets.symmetric(vertical: 15, horizontal: 15),
+        contentPadding:
+            const EdgeInsets.symmetric(vertical: 15, horizontal: 15),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
           borderSide: BorderSide(color: Colors.grey.shade300, width: 1),
@@ -391,7 +404,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
         ),
       ),
       validator: validator ??
-              (value) {
+          (value) {
             if (value == null || value.isEmpty) {
               return 'Please enter $hintText';
             }
@@ -410,7 +423,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
         hintStyle: TextStyle(color: Colors.grey.shade400),
         filled: true,
         fillColor: Colors.white,
-        contentPadding: const EdgeInsets.symmetric(vertical: 15, horizontal: 15),
+        contentPadding:
+            const EdgeInsets.symmetric(vertical: 15, horizontal: 15),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
           borderSide: BorderSide(color: Colors.grey.shade300, width: 1),
@@ -463,9 +477,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
           value: value,
           items: items
               .map((val) => DropdownMenuItem<String>(
-            value: val,
-            child: Text(val),
-          ))
+                    value: val,
+                    child: Text(val),
+                  ))
               .toList(),
           onChanged: onChanged,
         ),

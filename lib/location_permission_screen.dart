@@ -70,10 +70,9 @@ class LocationPermissionScreen extends StatelessWidget {
               borderRadius: BorderRadius.circular(30),
             ),
           ),
-          icon: const Icon(Icons.location_on, color: Colors.white),
           label: const Text(
-            'Allow Location Access',
-            style: TextStyle(color: Colors.white, fontSize: 16),
+            'Get Started Now',
+            style: TextStyle(color: Colors.white, fontSize: 18),
           ),
         ),
       ),
