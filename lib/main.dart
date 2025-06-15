@@ -10,10 +10,15 @@ import 'home.dart';
 import 'signup_screen.dart';
 // ① Import your existing screens
 import 'splash_screen.dart';
+import 'package:flutter/services.dart';
+
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized(); // مهم جدًا قبل SystemChrome
+  SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky); // ← يخفي شريط النظام كله
   runApp(const MyApp());
 }
+
 
 class MyApp extends StatelessWidget {
   const MyApp({Key? key}) : super(key: key);

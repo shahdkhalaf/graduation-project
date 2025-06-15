@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:geolocator/geolocator.dart' as geo;
 import 'package:http/http.dart' as http;
 import 'package:location/location.dart';
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
@@ -16,7 +17,7 @@ import 'make_complaint_screen.dart';
 import 'mapbox_view.dart'; // our helper widget
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({Key? key}) : super(key: key);
+  const HomeScreen({super.key});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -25,16 +26,17 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
-  String startingPoint = "My current location";
-  String destination = "My Destination";
+  String selectedStartingPoint = "اختر نقطة الانطلاق";
+  String destination = "اختر الوجهة";
+  String? currentLocationName;  // لما يحصل تتبع فعلي
   Timer? _checkRequestsTimer;
   Timer? _sendLocationTimer;
   bool _sendingLocation = false;
   bool isTracking = false; // Live‐tracking flag
-  String? trackingUserId; // ID being tracked
+  int? trackingUserId;// ID being tracked
 
   MapboxMap? mapboxMap; // Map controller
-  Location _location = Location(); // Location plugin
+  final Location _location = Location(); // Location plugin
   Point? userLocation; // Latest user location
 
   @override
@@ -45,21 +47,21 @@ class _HomeScreenState extends State<HomeScreen> {
     SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
       statusBarIconBrightness:
-          Brightness.dark, // لو الماب فاتحة، لو غامقة حط Brightness.light
+      Brightness.dark, // لو الماب فاتحة، لو غامقة حط Brightness.light
     ));
 
     _initLocationListener();
     _startCheckingRequestsTimer();
     _checkPendingTrackingRequests();
-  }
+    Timer.periodic(Duration(seconds: 10), (_) => _fetchTrackedUserLocation());
 
+  }
   @override
   void dispose() {
     _checkRequestsTimer?.cancel();
     _sendLocationTimer?.cancel();
     super.dispose();
   }
-
   void _startCheckingRequestsTimer() {
     _checkRequestsTimer?.cancel();
     _checkRequestsTimer = Timer.periodic(Duration(seconds: 15), (timer) async {
@@ -82,8 +84,7 @@ class _HomeScreenState extends State<HomeScreen> {
             final toUserId = req['to_user_id'];
 
             _checkRequestsTimer?.cancel();
-            _showIncomingTrackingRequestDialog(
-                fromUserId: fromUserId, toUserId: toUserId);
+            _showIncomingTrackingRequestDialog(fromUserId: fromUserId, toUserId: toUserId);
           }
         }
       } catch (e) {
@@ -92,8 +93,8 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
-  void _showIncomingTrackingRequestDialog(
-      {required String fromUserId, required String toUserId}) {
+  void _showIncomingTrackingRequestDialog({required int fromUserId, required int toUserId})
+  {
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -105,13 +106,12 @@ class _HomeScreenState extends State<HomeScreen> {
             TextButton(
               onPressed: () async {
                 Navigator.pop(context);
-                await _updateTrackingRequest(
-                    int.parse(fromUserId), int.parse(toUserId));
+                await  _updateTrackingRequest(fromUserId,toUserId);
 
                 // خزّن التتبع في SharedPreferences
                 final prefs = await SharedPreferences.getInstance();
-                await prefs.setInt('tracking_from', int.parse(fromUserId));
-                await prefs.setInt('tracking_to', int.parse(toUserId));
+                await prefs.setInt('tracking_from', fromUserId);
+                await prefs.setInt('tracking_to', toUserId);
 
                 // فعّل التراكينج
                 setState(() {
@@ -124,9 +124,10 @@ class _HomeScreenState extends State<HomeScreen> {
               },
               child: const Text("Accept"),
             ),
+
             TextButton(
               onPressed: () async {
-                await _updateTrackingRequest(int.parse(fromUserId), 1);
+                await _updateTrackingRequest(fromUserId, 1);
                 Navigator.pop(context);
                 _startCheckingRequestsTimer();
                 _startSendingLocationUpdates();
@@ -139,23 +140,41 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+
   void _startSendingLocationUpdates() {
     if (_sendingLocation) return;
-
     _sendingLocation = true;
 
-    _sendLocationTimer =
-        Timer.periodic(const Duration(seconds: 5), (timer) async {
-      if (userLocation == null || trackingUserId == null) return;
+    _sendLocationTimer = Timer.periodic(const Duration(seconds: 5), (timer) async {
+      final prefs = await SharedPreferences.getInstance();
+      final fromUserId = prefs.getInt('user_id') ?? 0;
 
-      final coords = userLocation!.coordinates.toJson();
-      print(
-          "📍 Sending location to user $trackingUserId: ${coords[1]}, ${coords[0]}");
+      final data = await geo.Geolocator.getCurrentPosition();
+      final lat = data.latitude;
+      final lon = data.longitude;
 
-      // ✨ هنا ممكن تبعت API حقيقية لو عملت endpoint في السيرفر
-      // await http.post(...);
+      setState(() {
+        userLocation = Point(coordinates: Position(lon, lat)); // Mapbox-style
+        currentLocationName = "📍 موقعي الحالي: (${lat.toStringAsFixed(5)}, ${lon.toStringAsFixed(5)})";
+      });
+
+      final response = await http.post(
+        Uri.parse('https://graduation-project-production-39f0.up.railway.app/send_location'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'from_user_id': fromUserId,
+          'to_user_id': trackingUserId,
+          'latitude': lat,
+          'longitude': lon,
+        }),
+      );
+
+      print("📡 Response: ${response.statusCode}, ${response.body}");
     });
   }
+
+
+
 
   void _stopSharing_ForTracking() {
     setState(() {
@@ -171,7 +190,6 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _initLocationListener() async {
-    // 1) Ensure service & permission
     if (!await _location.serviceEnabled()) {
       if (!await _location.requestService()) return;
     }
@@ -181,17 +199,19 @@ class _HomeScreenState extends State<HomeScreen> {
       }
     }
 
-    // 2) Listen to location updates
     _location.onLocationChanged.listen((data) {
       if (data.latitude == null || data.longitude == null) return;
       final lat = data.latitude!;
       final lng = data.longitude!;
+
       setState(() {
         userLocation = Point(coordinates: Position(lng, lat));
-        startingPoint = "${lat.toStringAsFixed(5)}, ${lng.toStringAsFixed(5)}";
+        currentLocationName = "📍 موقعي الحالي: (${lat.toStringAsFixed(5)}, ${lng.toStringAsFixed(5)})";
+        // ❌ شيل أي تعديل على selectedStartingPoint هنا
       });
     });
   }
+
 
   Future<void> _checkPendingTrackingRequests() async {
     print("📌 Checking tracking requests...");
@@ -254,8 +274,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     try {
       final response = await http.post(
-        Uri.parse(
-            'https://graduation-project-production-39f0.up.railway.app/update_tracking_request'),
+        Uri.parse('https://graduation-project-production-39f0.up.railway.app/update_tracking_request'),
         headers: {"Content-Type": "application/json"},
         body: jsonEncode({
           "from_user_id": fromUserId,
@@ -282,7 +301,32 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
+//####################################################################################################################################################
+  Future<void> _fetchTrackedUserLocation() async {
+    if (trackingUserId == null) return;
 
+    final url = Uri.parse(
+      'https://graduation-project-production-39f0.up.railway.app/get_latest_location?user_id=$trackingUserId',
+    );
+
+    final response = await http.get(url);
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      final latest = data['latest'];
+      final lat = latest['latitude'];
+      final lon = latest['longitude'];
+
+      final manager = await mapboxMap?.annotations.createCircleAnnotationManager();
+
+      await manager?.create(CircleAnnotationOptions(
+        geometry: Point(coordinates: Position(lon, lat)),
+        circleColor: 0xFFFF0000, // لون أحمر كـ int
+        circleRadius: 8.0,
+      ));
+    } else {
+      print("🔴 Error fetching tracked user location");
+    }
+  }
   // ===================== Location Selection =====================
   void _selectLocation(bool isStartingPoint) async {
     final List<String> places = [
@@ -316,15 +360,15 @@ class _HomeScreenState extends State<HomeScreen> {
       "العصافرة 45"
     ];
 
-    String current = isStartingPoint ? startingPoint : destination;
+    String current = isStartingPoint ? selectedStartingPoint : destination;
     List<String> available = places.where((loc) {
       if (loc == current) return false;
       if (!isStartingPoint) {
-        if (urbanAreas.contains(startingPoint)) {
+        if (urbanAreas.contains(selectedStartingPoint)) {
           if (!disconnectedAreas["الكيلو 21"]!.contains(loc)) return false;
         } else {
-          if (disconnectedAreas.containsKey(startingPoint) &&
-              disconnectedAreas[startingPoint]!.contains(loc)) {
+          if (disconnectedAreas.containsKey(selectedStartingPoint) &&
+              disconnectedAreas[selectedStartingPoint]!.contains(loc)) {
             return false;
           }
         }
@@ -340,9 +384,9 @@ class _HomeScreenState extends State<HomeScreen> {
         child: ListView(
           children: available
               .map((place) => ListTile(
-                    title: Text(place),
-                    onTap: () => Navigator.pop(context, place),
-                  ))
+            title: Text(place),
+            onTap: () => Navigator.pop(context, place),
+          ))
               .toList(),
         ),
       ),
@@ -351,10 +395,10 @@ class _HomeScreenState extends State<HomeScreen> {
     if (selected != null) {
       setState(() {
         if (isStartingPoint) {
-          startingPoint = selected;
+          selectedStartingPoint = selected;
           if (disconnectedAreas.containsKey(selected) &&
               disconnectedAreas[selected]!.contains(destination)) {
-            destination = "My Destination";
+            destination = "اختر الوجهة";
           }
         } else {
           destination = selected;
@@ -373,9 +417,9 @@ class _HomeScreenState extends State<HomeScreen> {
         return Dialog(
           backgroundColor: Colors.white,
           shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           insetPadding:
-              const EdgeInsets.symmetric(horizontal: 25, vertical: 20),
+          const EdgeInsets.symmetric(horizontal: 25, vertical: 20),
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(20),
             child: Column(
@@ -402,7 +446,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 const SizedBox(height: 16),
                 const Text(
                   "To start a live location session, enter the ID of the person you want to track.\n"
-                  "Once they accept your request, both of your locations will be visible on the map in real-time.",
+                      "Once they accept your request, both of your locations will be visible on the map in real-time.",
                   style: TextStyle(fontSize: 16, color: Colors.black),
                 ),
                 const SizedBox(height: 17),
@@ -413,7 +457,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     filled: true,
                     fillColor: Colors.white,
                     contentPadding:
-                        EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   ),
                   onChanged: (value) => userId = value,
                 ),
@@ -439,7 +483,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           headers: {"Content-Type": "application/json"},
                           body: jsonEncode({
                             "from_user_id":
-                                myUserId, // هتحط هنا ال user_id بتاع ال user اللي عامل request (3 مثلا)
+                            myUserId, // هتحط هنا ال user_id بتاع ال user اللي عامل request (3 مثلا)
                             "to_user_id": int.parse(userId),
                           }),
                         );
@@ -480,7 +524,6 @@ class _HomeScreenState extends State<HomeScreen> {
       },
     );
   }
-
   Future<bool> _checkIfTrackingAccepted(int fromUserId, int toUserId) async {
     final response = await http.get(Uri.parse(
       'https://graduation-project-production-39f0.up.railway.app/check_tracking_requests?user_id=$toUserId',
@@ -499,7 +542,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return false;
   }
 
-  Future<void> _startLiveTracking(String toUserId) async {
+  Future<void> _startLiveTracking(toUserId) async {
     final prefs = await SharedPreferences.getInstance();
     final fromUserId = prefs.getInt('user_id') ?? 0;
 
@@ -514,8 +557,7 @@ class _HomeScreenState extends State<HomeScreen> {
     bool accepted = false;
     for (int i = 0; i < 10; i++) {
       await Future.delayed(Duration(seconds: 3));
-      final acceptedStatus =
-          await _checkIfTrackingAccepted(fromUserId, int.parse(toUserId));
+      final acceptedStatus = await _checkIfTrackingAccepted(fromUserId, int.parse(toUserId));
       if (acceptedStatus) {
         accepted = true;
         break;
@@ -528,7 +570,7 @@ class _HomeScreenState extends State<HomeScreen> {
     if (accepted) {
       setState(() {
         isTracking = true;
-        trackingUserId = toUserId;
+        trackingUserId = int.parse(toUserId);
       });
       _startSendingLocationUpdates();
       _showTrackingConfirmation(toUserId);
@@ -556,9 +598,9 @@ class _HomeScreenState extends State<HomeScreen> {
         return Dialog(
           backgroundColor: Colors.white,
           shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           insetPadding:
-              const EdgeInsets.symmetric(horizontal: 25, vertical: 150),
+          const EdgeInsets.symmetric(horizontal: 25, vertical: 150),
           child: Padding(
             padding: const EdgeInsets.all(20),
             child: Stack(
@@ -624,7 +666,7 @@ class _HomeScreenState extends State<HomeScreen> {
   void _showTrackingConfirmation(String userId) {
     setState(() {
       isTracking = true;
-      trackingUserId = userId;
+      trackingUserId = int.parse(userId);
     });
 
     showDialog(
@@ -634,9 +676,9 @@ class _HomeScreenState extends State<HomeScreen> {
         return Dialog(
           backgroundColor: Colors.white,
           shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           insetPadding:
-              const EdgeInsets.symmetric(horizontal: 25, vertical: 150),
+          const EdgeInsets.symmetric(horizontal: 25, vertical: 150),
           child: Stack(
             children: [
               SingleChildScrollView(
@@ -701,7 +743,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                           TextSpan(
                               text:
-                                  ".\nYou can continue exploring the app while tracking runs in the background."),
+                              ".\nYou can continue exploring the app while tracking runs in the background."),
                         ],
                       ),
                     ),
@@ -717,20 +759,13 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ],
           ),
+
         );
       },
     );
   }
 
-  void _stopSharing() {
-    setState(() {
-      isTracking = false;
-      trackingUserId = null;
-    });
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Stopped sharing location")),
-    );
-  }
+
 
   // ===================== Route Confirmation Dialog =====================
   void _showRouteConfirmation() {
@@ -739,9 +774,9 @@ class _HomeScreenState extends State<HomeScreen> {
       builder: (BuildContext context) {
         return Dialog(
           shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           insetPadding:
-              const EdgeInsets.symmetric(horizontal: 20, vertical: 100),
+          const EdgeInsets.symmetric(horizontal: 20, vertical: 100),
           child: Container(
             padding: const EdgeInsets.all(20),
             child: Column(
@@ -754,7 +789,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     const Text(
                       "Your Route",
                       style:
-                          TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                     ),
                     GestureDetector(
                       onTap: () => Navigator.pop(context),
@@ -783,7 +818,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _buildLocationRow("STARTING POINT", startingPoint),
+                          _buildLocationRow("STARTING POINT", selectedStartingPoint),
                           const SizedBox(height: 10),
                           _buildLocationRow("ENDING POINT", destination),
                         ],
@@ -831,10 +866,10 @@ class _HomeScreenState extends State<HomeScreen> {
         children: [
           Text(label,
               style:
-                  const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+              const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
           Text(value,
               style:
-                  const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+              const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
         ],
       ),
     );
@@ -854,8 +889,7 @@ class _HomeScreenState extends State<HomeScreen> {
               onPressed: _stopSharing_ForTracking,
               style: ElevatedButton.styleFrom(
                 backgroundColor: Color(0xFF175579),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
@@ -877,7 +911,7 @@ class _HomeScreenState extends State<HomeScreen> {
       mainAxisSize: MainAxisSize.min,
       children: List.generate(
         6,
-        (index) => Container(
+            (index) => Container(
           width: 2,
           height: 5,
           color: Colors.grey.shade600,
@@ -925,6 +959,7 @@ class _HomeScreenState extends State<HomeScreen> {
         removeBottom: true,
         child: Stack(
           children: [
+
             // Map
             Positioned.fill(
               child: MapboxView(
@@ -938,6 +973,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
 
             buildStopSharingButton(),
+
             // Drawer button
             Positioned(
               top: 40,
@@ -960,7 +996,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ],
                   ),
                   child: Padding(
-                    padding: const EdgeInsets.all(6.0),
+                    padding: const EdgeInsets.all(8.0),
                     child: Image.asset(
                       'assets/img_1.png',
                       fit: BoxFit.contain,
@@ -970,14 +1006,11 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
 
-            // ✅ زر STOP SHARING
-
             // Bottom panel with GO button & selectors
             Align(
               alignment: Alignment.bottomCenter,
               child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 27),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 27),
                 decoration: const BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
@@ -1006,13 +1039,30 @@ class _HomeScreenState extends State<HomeScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               GestureDetector(
-                                onTap: () => _selectLocation(true),
-                                child: _buildLocationRow(
-                                    "STARTING POINT", startingPoint),
-                              ),
+                              onTap: () => _selectLocation(true),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildLocationRow(
+                      "STARTING POINT",
+                      currentLocationName ?? selectedStartingPoint,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      currentLocationName != null
+                          ? "📍 يتم عرض موقعك الحالي تلقائيًا"
+                          : "🧭 هذه نقطة الانطلاق التي اخترتها",
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
                               const SizedBox(height: 12),
-                              Divider(
-                                  color: Colors.grey.shade300, thickness: 1),
+                              Divider(color: Colors.grey.shade300, thickness: 1),
                               const SizedBox(height: 12),
                               Row(
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -1020,9 +1070,27 @@ class _HomeScreenState extends State<HomeScreen> {
                                   Expanded(
                                     child: GestureDetector(
                                       onTap: () => _selectLocation(false),
-                                      child: _buildLocationRow(
-                                          "ENDING POINT", destination),
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          _buildLocationRow(
+                                            "ENDING POINT",
+                                            destination,
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            destination != "اختر الوجهة"
+                                                ? "🎯 هذه وجهتك التي اخترتها يدويًا"
+                                                : "🚩 لم يتم اختيار وجهة بعد",
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              color: Colors.grey.shade600,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
                                     ),
+
                                   ),
                                   const SizedBox(width: 16),
                                   SizedBox(
@@ -1030,25 +1098,22 @@ class _HomeScreenState extends State<HomeScreen> {
                                     height: 50,
                                     child: mapboxMap == null
                                         ? ElevatedButton(
-                                            onPressed: null,
-                                            style: ElevatedButton.styleFrom(
-                                              backgroundColor:
-                                                  Colors.grey.shade400,
-                                              shape: RoundedRectangleBorder(
-                                                borderRadius:
-                                                    BorderRadius.circular(30),
-                                              ),
-                                            ),
-                                            child: const Text("GO",
-                                                style: TextStyle(
-                                                    color: Colors.white)),
-                                          )
+                                      onPressed: null,
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.grey.shade400,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(30),
+                                        ),
+                                      ),
+                                      child: const Text("GO", style: TextStyle(color: Colors.white)),
+                                    )
                                         : buildGoButton(
-                                            context: context,
-                                            mapController: mapboxMap!,
-                                            currentLocation: userLocation,
-                                            destination: destination,
-                                          ),
+                                      context: context,
+                                      mapController: mapboxMap!,
+                                      currentLocation: userLocation,
+                                      destination: destination,
+                                      onShowRouteConfirmation: _showRouteConfirmation,
+                                    ),
                                   )
                                 ],
                               ),
@@ -1066,6 +1131,8 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
+
+
 
   Widget _buildDrawer() {
     return Drawer(

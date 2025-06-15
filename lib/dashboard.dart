@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
+import 'package:flutter/services.dart';
 
 class DashboardAdmin extends StatefulWidget {
   const DashboardAdmin({Key? key}) : super(key: key);
@@ -12,7 +13,7 @@ class _DashboardAdminState extends State<DashboardAdmin> {
   late final WebViewController _controller;
   bool _isLoading = true;
   String? _errorMessage;
-
+  bool _showAppBar = true;
   // Replace this URL with your actual Power BI report URL
   static const String _powerBiUrl =
       'https://app.powerbi.com/view?r=eyJrIjoiNjc4ZmZkZTEtODNjYy00YmY3LWIxODUtOWI4NGFiZTcyZDM5IiwidCI6ImVhZjYyNGM4LWEwYzQtNDE5NS04N2QyLTQ0M2U1ZDc1MTZjZCIsImMiOjh9';
@@ -20,7 +21,23 @@ class _DashboardAdminState extends State<DashboardAdmin> {
   @override
   void initState() {
     super.initState();
+
+    // فرض الوضع العرضي
+    SystemChrome.setPreferredOrientations([
+      DeviceOrientation.landscapeLeft,
+      DeviceOrientation.landscapeRight,
+    ]);
+
     _initializeWebView();
+  }
+  @override
+  void dispose() {
+    // رجّع الوضع الرأسي العادي
+    SystemChrome.setPreferredOrientations([
+      DeviceOrientation.portraitUp,
+      DeviceOrientation.portraitDown,
+    ]);
+    super.dispose();
   }
 
   void _initializeWebView() {
@@ -95,32 +112,67 @@ class _DashboardAdminState extends State<DashboardAdmin> {
   Widget build(BuildContext context) {
     return WillPopScope(
       onWillPop: _onWillPop,
-      child: Scaffold(
-        appBar: AppBar(
-          title: const Text('Track and Monitor Complaints',
-              style: TextStyle(
-                fontSize: 18,
-              )),
-          backgroundColor: Color(0xFF175579),
-          foregroundColor: Colors.white,
-          elevation: 2,
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.refresh),
-              onPressed: _refreshDashboard,
-              tooltip: 'Refresh Dashboard',
+      child: GestureDetector(
+        onTap: () {
+          setState(() {
+            _showAppBar = !_showAppBar;
+          });
+        },
+        child: Scaffold(
+          appBar: _showAppBar
+              ? AppBar(
+            backgroundColor: Colors.white,
+            elevation: 1,
+            iconTheme: const IconThemeData(color: Colors.black),
+            title: Row(
+              children: [
+                CircleAvatar(
+                  radius: 16,
+                  backgroundColor: const Color(0xFF175579),
+                  child: Image.asset(
+                    'assets/img_1.png',
+                    width: 22,
+                    height: 22,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    "Monitor Complaints",
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                    style: const TextStyle(
+                      fontSize: 20,
+                      color: Color(0xFF175579),
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
-        body: Stack(
-          children: [
-            if (_errorMessage != null) _buildErrorWidget() else _buildWebView(),
-            if (_isLoading) _buildLoadingOverlay(),
-          ],
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.refresh, color: Color(0xFF175579)),
+                onPressed: _refreshDashboard,
+                tooltip: 'Refresh Dashboard',
+              ),
+            ],
+          )
+              : null, // ← مش هيظهر AppBar لما يكون false
+          body: Stack(
+            children: [
+              if (_errorMessage != null)
+                _buildErrorWidget()
+              else
+                _buildWebView(),
+              if (_isLoading) _buildLoadingOverlay(),
+            ],
+          ),
         ),
       ),
     );
   }
+
 
   Widget _buildWebView() {
     return WebViewWidget(

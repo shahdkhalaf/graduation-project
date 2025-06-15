@@ -249,34 +249,43 @@ class _AccountScreenState extends State<AccountScreen>
             expandedHeight: 62,
             floating: false,
             pinned: true,
-            backgroundColor: const Color(0xFF175579),
+            backgroundColor: Colors.white,
+            elevation: 1,
+            iconTheme: const IconThemeData(color: Colors.black),
             flexibleSpace: FlexibleSpaceBar(
-              title: const Text(
-                'My Account',
-                style: TextStyle(
-                  fontSize: 18,
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              background: Container(
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [Color(0xFF175579)],
+              titlePadding: const EdgeInsetsDirectional.only(start: 56, bottom: 16),
+              title: Row(
+                children: [
+                  CircleAvatar(
+                    radius: 16,
+                    backgroundColor: const Color(0xFF175579),
+                    child: Image.asset(
+                      'assets/img_1.png', // ← حط هنا اللوجو اللي عندك
+                      width: 22,
+                      height: 22,
+                    ),
                   ),
-                ),
+                  const SizedBox(width: 8),
+                  Text(
+                    "My Account",
+                    style: const TextStyle(
+                      color: Color(0xFF175579),
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
               ),
             ),
             actions: [
               IconButton(
-                icon: const Icon(Icons.refresh, color: Colors.white),
+                icon: const Icon(Icons.refresh, color: Color(0xFF175579)),
                 onPressed: _refreshUserData,
                 tooltip: 'Refresh Profile',
               ),
             ],
           ),
+
 
           // Content
           SliverToBoxAdapter(
