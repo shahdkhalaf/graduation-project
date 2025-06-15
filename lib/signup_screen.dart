@@ -53,7 +53,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
   /// Called when the “Create account” button is pressed.
   Future<void> _createAccount() async {
-    // First, verify that all fields validate and checkbox is checked
     if (!_formKey.currentState!.validate() ||
         !_agreedToTerms ||
         _selectedDistrict == null ||
@@ -67,20 +66,17 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
     setState(() => _isLoading = true);
 
-    // Build payload
     final payload = {
       "first_name": _firstNameController.text.trim(),
       "last_name": _lastNameController.text.trim(),
       "email": _emailController.text.trim(),
       "password": _passwordController.text,
       "age": _ageController.text.trim(),
-      "gendar":
-          _selectedGender!.toLowerCase(), // match backend field name “gendar”
+      "gendar": _selectedGender!.toLowerCase(),
       "district": _selectedDistrict!
     };
 
     try {
-      // Replace this URL with your Railway signup endpoint
       final uri = Uri.parse(
           "https://graduation-project-production-39f0.up.railway.app/signup");
       final response = await http.post(
@@ -89,14 +85,14 @@ class _SignUpScreenState extends State<SignUpScreen> {
         body: jsonEncode(payload),
       );
 
-      // Inspect the status code
       if (response.statusCode == 201) {
-        // Success → navigate to CongratulationsScreen
         setState(() => _isLoading = false);
         final responseData = jsonDecode(response.body);
         final prefs = await SharedPreferences.getInstance();
         prefs.setString('user_email', _emailController.text.trim());
-        prefs.setInt('user_id', responseData['user']['user_id']);
+
+        // ✅ save user_id as int
+        prefs.setInt('user_id', int.parse(responseData['user']['user_id'].toString()));
 
         Navigator.push(
           context,
@@ -104,7 +100,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
               builder: (context) => const CongratulationsScreen()),
         );
       } else {
-        // Backend returned error (e.g. 400/409). Show the “error” field if present.
         final body = jsonDecode(response.body);
         final serverMsg = body['error'] ?? 'Unknown error';
         setState(() => _isLoading = false);
@@ -132,7 +127,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Make the form width responsive
     final screenWidth = MediaQuery.of(context).size.width;
     final formWidth = screenWidth > 600 ? 500.0 : screenWidth * 0.9;
 

@@ -93,7 +93,7 @@ class _SignInScreenState extends State<SignInScreen> {
         final prefs = await SharedPreferences.getInstance();
 
         // Store user data in SharedPreferences
-        await prefs.setString('user_id', userData['user_id']?.toString() ?? '');
+        await prefs.setInt('user_id', int.parse(userData['user_id'].toString()));
         await prefs.setString('first_name', userData['first_name'] ?? '');
         await prefs.setString('last_name', userData['last_name'] ?? '');
         await prefs.setString('email',
