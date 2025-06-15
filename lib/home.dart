@@ -526,7 +526,7 @@ class _HomeScreenState extends State<HomeScreen> {
         trackingUserId = int.parse(toUserId);
       });
       _startSendingLocationUpdates();
-      _showTrackingConfirmation(git statusgtoUserId);
+      _showTrackingConfirmation(toUserId);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Request not accepted yet.")),
