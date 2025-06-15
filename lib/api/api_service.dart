@@ -1,18 +1,18 @@
 // api_service.dart
+
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class ApiService {
-
   static const String baseUrl =
-      "https://reg-model-deffhegbbac0anfx.switzerlandnorth-01.azurewebsites.net";
+      "https://reg-model-deffhegbbac0anfx.switzerlandnorth-01.azurewebsites.net"; // ML model server
+  static const String backendBaseUrl =
+      "https://graduation-project-production-39f0.up.railway.app"; // Railway backend
 
-  // (OCR endpoint here)
   static const String ocrEndpoint = "http://4.182.248.150:5000/ocr";
 
-  /// ⏳ Waiting Time Prediction
-  /// Returns the first element of "Q50_prediction" as a String, or null on failure.
-  static Future<String?> fetchWaitingTime({
+  /// 🔄 Fetch waiting time predictions (Q25, Q50, Q75)
+  static Future<Map<String, dynamic>?> fetchWaitingTimeFull({
     required int age,
     required String gender,
     required String from,
@@ -32,9 +32,6 @@ class ApiService {
       "IsWeekend": isWeekend,
     };
 
-    print("📤 Sending POST to $uri");
-    print("📝 Request Body: ${jsonEncode(payload)}");
-
     try {
       final response = await http.post(
         uri,
@@ -42,61 +39,65 @@ class ApiService {
         body: jsonEncode(payload),
       );
 
-      print("📥 Status Code: ${response.statusCode}");
-      print("📥 Response Body: ${response.body}");
-
       if (response.statusCode == 200) {
-        final bodyJson = jsonDecode(response.body) as Map<String, dynamic>;
-
-        // Grab Q50_prediction (an array) and return its first element
-        final q50List = bodyJson["Q50_prediction"] as List<dynamic>?;
-        if (q50List != null && q50List.isNotEmpty) {
-          return q50List[0].toString();
-        }
-        return null;
+        return jsonDecode(response.body) as Map<String, dynamic>;
       } else {
+        print("❌ Model response error: ${response.statusCode}");
         return null;
       }
     } catch (e) {
-      print("❌ Exception during API call: $e");
+      print("❌ Exception during waiting time call: $e");
       return null;
     }
   }
 
-  /// 🔍 OCR Text Extraction (unchanged)
+  /// 💰 Fetch route price from the database
+  static Future<String?> fetchPrice({
+    required String from,
+    required String to,
+  }) async {
+    final uri = Uri.parse("$backendBaseUrl/get_price?from=$from&to=$to");
 
-  /// 🔍 OCR Text Extraction via multipart/form-data
-  /// Expects JSON of the form:
-  /// {
-  ///   "detected_text": ["line1", "line2", …]
-  /// }
-  /// Posts the image file itself (not Base64) under the `image` field,
-  /// parses the `"detected_text"` array, and returns it joined with spaces.
+    try {
+      final response = await http.get(uri);
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return data['price'];
+      } else {
+        print("❌ Failed to fetch price: ${response.statusCode}");
+        return null;
+      }
+    } catch (e) {
+      print("❌ Error fetching price: $e");
+      return null;
+    }
+  }
+
+  /// 🔍 OCR text extraction using a separate ML service
   static Future<String?> extractTextFromImage(String imagePath) async {
     final uri = Uri.parse(ocrEndpoint);
     final request = http.MultipartRequest('POST', uri)
       ..files.add(await http.MultipartFile.fromPath('image', imagePath));
 
-    print("📤 OCR multipart POST → $uri");
-    print("    imagePath: $imagePath");
+    try {
+      final streamed = await request.send();
+      final response = await http.Response.fromStream(streamed);
 
-    final streamed = await request.send();
-    final response = await http.Response.fromStream(streamed);
-
-    print("📥 OCR status: ${response.statusCode}");
-    print("📥 OCR body:   ${response.body}");
-
-    if (response.statusCode == 200) {
-      final Map<String, dynamic> map = jsonDecode(response.body);
-      final List<dynamic>? lines = map['detected_text'] as List<dynamic>?;
-      if (lines != null && lines.isNotEmpty) {
-        // join all lines into a single string
-        return lines.map((e) => e.toString()).join(' ');
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> map = jsonDecode(response.body);
+        final List<dynamic>? lines = map['detected_text'] as List<dynamic>?;
+        if (lines != null && lines.isNotEmpty) {
+          return lines.map((e) => e.toString()).join(' ');
+        }
       }
+      return null;
+    } catch (e) {
+      print("❌ OCR error: $e");
+      return null;
     }
-    return null;
   }
 }
+
 
 
 

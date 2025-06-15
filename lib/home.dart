@@ -768,15 +768,17 @@ class _HomeScreenState extends State<HomeScreen> {
 
 
   // ===================== Route Confirmation Dialog =====================
-  void _showRouteConfirmation() {
+  void _showRouteConfirmation({
+    required String estimatedTime,
+    required String estimatedWait,
+    required String price,
+  }) {
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return Dialog(
-          shape:
-          RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          insetPadding:
-          const EdgeInsets.symmetric(horizontal: 20, vertical: 100),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 100),
           child: Container(
             padding: const EdgeInsets.all(20),
             child: Column(
@@ -786,11 +788,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text(
-                      "Your Route",
-                      style:
-                      TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                    ),
+                    const Text("Your Route", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                     GestureDetector(
                       onTap: () => Navigator.pop(context),
                       child: const Icon(Icons.close, color: Colors.grey),
@@ -798,15 +796,11 @@ class _HomeScreenState extends State<HomeScreen> {
                   ],
                 ),
                 const SizedBox(height: 6),
-                const Text(
-                  "Confirm where you are going",
-                  style: TextStyle(fontSize: 14, color: Colors.grey),
-                ),
+                const Text("Confirm where you are going", style: TextStyle(fontSize: 14, color: Colors.grey)),
                 const SizedBox(height: 20),
                 Row(
                   children: [
                     Column(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         const Icon(Icons.my_location, color: Colors.blue),
                         _buildDashedLine(),
@@ -829,24 +823,19 @@ class _HomeScreenState extends State<HomeScreen> {
                 const SizedBox(height: 20),
                 const Divider(height: 1, color: Colors.grey),
                 const SizedBox(height: 16),
-                _buildEstimateRow("Estimated travel time", "50 mins"),
-                _buildEstimateRow("Estimated waiting time", "15 mins"),
-                _buildEstimateRow("Estimated price", "5.00 EGP"),
+                _buildEstimateRow("Estimated travel time", estimatedTime),
+                _buildEstimateRow("Estimated waiting time", estimatedWait),
+                _buildEstimateRow("Estimated price", price),
                 const SizedBox(height: 20),
                 Center(
                   child: ElevatedButton(
                     onPressed: () => Navigator.pop(context),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF175579),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(30)),
-                      padding: const EdgeInsets.symmetric(
-                          vertical: 14.0, horizontal: 40.0),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                      padding: const EdgeInsets.symmetric(vertical: 14.0, horizontal: 40.0),
                     ),
-                    child: const Text(
-                      "Confirm Route",
-                      style: TextStyle(fontSize: 16, color: Colors.white),
-                    ),
+                    child: const Text("Confirm Route", style: TextStyle(fontSize: 16, color: Colors.white)),
                   ),
                 ),
               ],
@@ -856,6 +845,7 @@ class _HomeScreenState extends State<HomeScreen> {
       },
     );
   }
+
 
   // ===================== Helper Widgets =====================
   Widget _buildEstimateRow(String label, String value) {
@@ -1112,9 +1102,15 @@ class _HomeScreenState extends State<HomeScreen> {
                                       mapController: mapboxMap!,
                                       currentLocation: userLocation,
                                       destination: destination,
-                                      onShowRouteConfirmation: _showRouteConfirmation,
+                                      onShowRouteConfirmation: (String estimatedTime, String estimatedWait, String price) {
+                                        _showRouteConfirmation(
+                                          estimatedTime: estimatedTime,
+                                          estimatedWait: estimatedWait,
+                                          price: price,
+                                        );
+                                      },
                                     ),
-                                  )
+                                  ),
                                 ],
                               ),
                             ],

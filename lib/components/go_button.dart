@@ -24,14 +24,14 @@ const Map<String, List<double>> _stationCoords = {
 /// Your Mapbox access token
 const _MAPBOX_TOKEN = 'pk.eyJ1IjoiaWhhZGl3bWljdCIsImEiOiJjbWJqMm9vYTgwYm5kMmlyMWEyNDh5MmYyIn0.MMoxVJcxIh23nh9G9KIaew';
 
-/// GO button: finds nearest station A, optionally draws walking route to A,
-/// then fetches and displays waiting-time from A -> chosen destination B.
+/// GO button: finds nearest station, draws walking route if needed,
+/// then calls backend APIs to get price and wait time, then displays result.
 Widget buildGoButton({
   required BuildContext context,
   required MapboxMap mapController,
   required Point? currentLocation,
   required String destination,
-  VoidCallback? onShowRouteConfirmation,
+  required Function(String estimatedTime, String estimatedWait, String price)? onShowRouteConfirmation,
 }) {
   return ElevatedButton(
     onPressed: () async {
@@ -76,8 +76,7 @@ Widget buildGoButton({
         final end   = "${nearestCoords[0]},${nearestCoords[1]}";
 
         final url = Uri.parse(
-            'https://api.mapbox.com/directions/v5/mapbox/walking/'
-                '$start;$end'
+            'https://api.mapbox.com/directions/v5/mapbox/walking/$start;$end'
                 '?geometries=geojson'
                 '&access_token=$_MAPBOX_TOKEN'
         );
@@ -120,6 +119,7 @@ Widget buildGoButton({
         }
       }
 
+      // Time bucket
       final h = DateTime.now().hour;
       final timeBucket = h < 9
           ? "From 6 AM To 9 AM"
@@ -130,11 +130,13 @@ Widget buildGoButton({
           : h < 18
           ? "From 3 PM To 6 PM"
           : "From 6 PM To 9 PM";
+
       final wd = DateTime.now().weekday;
       final isWeekend = (wd == DateTime.friday || wd == DateTime.saturday)
           ? "yes" : "no";
 
-      final raw = await ApiService.fetchWaitingTime(
+      // Fetch wait time and price
+      final waitResult = await ApiService.fetchWaitingTimeFull(
         age: 23,
         gender: "female",
         from: nearestName,
@@ -143,7 +145,10 @@ Widget buildGoButton({
         isRainy: "no",
         isWeekend: isWeekend,
       );
-      if (raw == null) {
+
+      final price = await ApiService.fetchPrice(from: nearestName, to: destination);
+
+      if (waitResult == null) {
         if (!context.mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Failed to fetch waiting time")),
@@ -151,15 +156,18 @@ Widget buildGoButton({
         return;
       }
 
+      final q25 = (waitResult['Q25_prediction'] as List).first as num;
+      final q50 = (waitResult['Q50_prediction'] as List).first as num;
+      final q75 = (waitResult['Q75_prediction'] as List).first as num;
+
       if (onShowRouteConfirmation != null) {
-        onShowRouteConfirmation();
+        onShowRouteConfirmation(
+          "${q50.toInt()} mins",
+          "${q25.toInt()}–${q75.toInt()} mins",
+          price ?? "N/A",
+        );
         return;
       }
-
-      final body = jsonDecode(raw) as Map<String, dynamic>;
-      final q25 = (body['Q25_prediction'] as List).first as num;
-      final q50 = (body['Q50_prediction'] as List).first as num;
-      final q75 = (body['Q75_prediction'] as List).first as num;
 
       final header = atStation
           ? "You’re already at $nearestName."
@@ -168,7 +176,8 @@ Widget buildGoButton({
         ..writeln(header)
         ..writeln("Wait-time to $destination:")
         ..writeln(" • Median: ${q50.toInt()} mins")
-        ..writeln(" • IQR: ${q25.toInt()}–${q75.toInt()} mins");
+        ..writeln(" • IQR: ${q25.toInt()}–${q75.toInt()} mins")
+        ..writeln("💰 Route Price: ${price ?? 'N/A'}");
 
       if (!context.mounted) return;
       showDialog(
@@ -193,3 +202,4 @@ Widget buildGoButton({
     child: const Text("GO", style: TextStyle(fontSize: 16, color: Colors.white)),
   );
 }
+
