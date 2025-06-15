@@ -31,10 +31,10 @@ Widget buildGoButton({
   required MapboxMap mapController,
   required Point? currentLocation,
   required String destination,
+  VoidCallback? onShowRouteConfirmation,
 }) {
   return ElevatedButton(
     onPressed: () async {
-      // 1) Ensure destination B is valid
       if (!_stationCoords.containsKey(destination)) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Please select a valid destination station.")),
@@ -42,12 +42,10 @@ Widget buildGoButton({
         return;
       }
 
-      // 2) Find nearest station A to currentLocation
       String? nearestName;
       double? nearestDist;
       List<double>? nearestCoords;
       if (currentLocation != null) {
-        // currentLocation.coordinates.toJson() is [lng, lat]
         final curr = currentLocation.coordinates.toJson();
         for (var entry in _stationCoords.entries) {
           final name = entry.key;
@@ -70,10 +68,8 @@ Widget buildGoButton({
         return;
       }
 
-      // 3) Check if already at station A (within ~50m)
       final atStation = nearestDist! < 50;
 
-      // 4) If not at station A, fetch and draw walking route to A
       if (!atStation && currentLocation != null) {
         final startCoords = currentLocation.coordinates.toJson();
         final start = "${startCoords[0]},${startCoords[1]}";
@@ -93,11 +89,9 @@ Widget buildGoButton({
               .map((pt) => pt.cast<double>())
               .toList();
 
-          // remove any existing route
           try { await mapController.style.removeStyleLayer("route-layer"); } catch (_) {}
           try { await mapController.style.removeStyleSource("route-source"); } catch (_) {}
 
-          // add the new route
           final geojson = jsonEncode({
             "type": "FeatureCollection",
             "features": [
@@ -126,7 +120,6 @@ Widget buildGoButton({
         }
       }
 
-      // 5) Fetch waiting-time percentiles from A -> B
       final h = DateTime.now().hour;
       final timeBucket = h < 9
           ? "From 6 AM To 9 AM"
@@ -158,12 +151,16 @@ Widget buildGoButton({
         return;
       }
 
+      if (onShowRouteConfirmation != null) {
+        onShowRouteConfirmation();
+        return;
+      }
+
       final body = jsonDecode(raw) as Map<String, dynamic>;
       final q25 = (body['Q25_prediction'] as List).first as num;
       final q50 = (body['Q50_prediction'] as List).first as num;
       final q75 = (body['Q75_prediction'] as List).first as num;
 
-      // 6) Show results
       final header = atStation
           ? "You’re already at $nearestName."
           : "Closest station is $nearestName.";
