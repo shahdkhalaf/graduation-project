@@ -38,6 +38,7 @@ class _HomeScreenState extends State<HomeScreen> {
   MapboxMap? mapboxMap; // Map controller
   final Location _location = Location(); // Location plugin
   Point? userLocation; // Latest user location
+  StreamSubscription<LocationData>? _locationSubscription; // Add this
 
   @override
   void initState() {
@@ -60,6 +61,7 @@ class _HomeScreenState extends State<HomeScreen> {
   void dispose() {
     _checkRequestsTimer?.cancel();
     _sendLocationTimer?.cancel();
+    _locationSubscription?.cancel(); // Cancel location subscription
     super.dispose();
   }
 
@@ -147,37 +149,44 @@ class _HomeScreenState extends State<HomeScreen> {
     if (_sendingLocation) return;
     _sendingLocation = true;
 
-    _sendLocationTimer =
-        Timer.periodic(const Duration(seconds: 5), (timer) async {
-          final prefs = await SharedPreferences.getInstance();
-          final fromUserId = prefs.getInt('user_id') ?? 0;
+    _sendLocationTimer = Timer.periodic(const Duration(seconds: 5), (timer) async {
+      final prefs = await SharedPreferences.getInstance();
+      final fromUserId = prefs.getInt('user_id') ?? 0;
 
-          final data = await geo.Geolocator.getCurrentPosition();
-          final lat = data.latitude;
-          final lon = data.longitude;
+      try {
+        final data = await geo.Geolocator.getCurrentPosition();
+        final lat = data.latitude;
+        final lon = data.longitude;
 
+        if (lat == null || lon == null) {
+          debugPrint("send_location: lat/lng is null, skipping API call");
+          return;
+        }
+
+        if (mounted) {
           setState(() {
-            userLocation =
-                Point(coordinates: Position(lon, lat)); // Mapbox-style
+            userLocation = Point(coordinates: Position(lon, lat)); // Mapbox-style
             currentLocationName =
-            "📍 موقعي الحالي: (${lat.toStringAsFixed(5)}, ${lon.toStringAsFixed(
-                5)})";
+                "📍 موقعي الحالي: (${lat.toStringAsFixed(5)}, ${lon.toStringAsFixed(5)})";
           });
+        }
 
-          final response = await http.post(
-            Uri.parse(
-                'https://graduation-project-production-39f0.up.railway.app/send_location'),
-            headers: {'Content-Type': 'application/json'},
-            body: jsonEncode({
-              'from_user_id': fromUserId,
-              'to_user_id': trackingUserId,
-              'latitude': lat,
-              'longitude': lon,
-            }),
-          );
+        final response = await http.post(
+          Uri.parse('https://graduation-project-production-39f0.up.railway.app/send_location'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            'from_user_id': fromUserId,
+            'to_user_id': trackingUserId,
+            'latitude': lat,
+            'longitude': lon,
+          }),
+        );
 
-          print("📡 Response: ${response.statusCode}, ${response.body}");
-        });
+        debugPrint("📡 Response: ${response.statusCode}, ${response.body}");
+      } catch (e) {
+        debugPrint("Error getting/sending location: $e");
+      }
+    });
   }
 
 
@@ -204,16 +213,20 @@ class _HomeScreenState extends State<HomeScreen> {
       }
     }
 
-    _location.onLocationChanged.listen((data) {
-      if (data.latitude == null || data.longitude == null) return;
+    _locationSubscription?.cancel(); // Cancel previous if any
+    _locationSubscription = _location.onLocationChanged.listen((data) {
+      if (data.latitude == null || data.longitude == null) {
+        debugPrint("Location data unavailable: lat/lng is null");
+        return;
+      }
       final lat = data.latitude!;
       final lng = data.longitude!;
 
+      if (!mounted) return; // Prevent setState after dispose
       setState(() {
         userLocation = Point(coordinates: Position(lng, lat));
         currentLocationName =
-        "📍 موقعي الحالي: (${lat.toStringAsFixed(5)}, ${lng.toStringAsFixed(
-            5)})";
+            "📍 موقعي الحالي: (${lat.toStringAsFixed(5)}, ${lng.toStringAsFixed(5)})";
         // ❌ شيل أي تعديل على selectedStartingPoint هنا
       });
     });
@@ -489,30 +502,26 @@ class _HomeScreenState extends State<HomeScreen> {
                       }
                       final prefs = await SharedPreferences.getInstance();
                       final myUserId = prefs.getInt('user_id') ?? 0;
-                      // 1️⃣ ابعت request للـ backend
                       try {
                         final response = await http.post(
                           Uri.parse(
                               'https://graduation-project-production-39f0.up.railway.app/send_tracking_request'),
-                          // عدل هنا ال link بتاعك
                           headers: {"Content-Type": "application/json"},
                           body: jsonEncode({
-                            "from_user_id":
-                            myUserId,
-                            // هتحط هنا ال user_id بتاع ال user اللي عامل request (3 مثلا)
+                            "from_user_id": myUserId,
                             "to_user_id": int.parse(userId),
                           }),
                         );
 
                         if (response.statusCode == 201) {
                           Navigator.pop(context);
+                          // Start polling for acceptance
                           _startLiveTracking(userId);
                         } else {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                                 content: Text(
-                                    "Failed to send request: ${response
-                                        .statusCode}")),
+                                    "Failed to send request: ${response.statusCode}")),
                           );
                         }
                       } catch (e) {
@@ -543,6 +552,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<bool> _checkIfTrackingAccepted(int fromUserId, int toUserId) async {
+    // Polls the backend to see if the request has been accepted (status == 1)
     final response = await http.get(Uri.parse(
       'https://graduation-project-production-39f0.up.railway.app/check_tracking_requests?user_id=$toUserId',
     ));
@@ -552,7 +562,7 @@ class _HomeScreenState extends State<HomeScreen> {
       for (var req in requests) {
         if (req['from_user_id'] == fromUserId &&
             req['to_user_id'] == toUserId &&
-            req['Status'] == 1) {
+            (req['status'] == 1 || req['Status'] == 1)) { // Accept both keys for robustness
           return true;
         }
       }
@@ -560,31 +570,32 @@ class _HomeScreenState extends State<HomeScreen> {
     return false;
   }
 
-  Future<void> _startLiveTracking(toUserId) async {
+  Future<void> _startLiveTracking(String toUserId) async {
     final prefs = await SharedPreferences.getInstance();
     final fromUserId = prefs.getInt('user_id') ?? 0;
 
-    // 1. خزّن البيانات
+    // 1. Store tracking info
     await prefs.setInt('tracking_from', fromUserId);
     await prefs.setInt('tracking_to', int.parse(toUserId));
 
-    // 2. اعرض ديالوج انتظار
+    // 2. Show waiting dialog
     _showWaitingDialog(toUserId);
 
-    // 3. راقب كل شوية لو الطرف التاني وافق
+    // 3. Poll for acceptance every 3 seconds, up to 30 seconds (10 tries)
     bool accepted = false;
     for (int i = 0; i < 10; i++) {
       await Future.delayed(Duration(seconds: 3));
-      final acceptedStatus = await _checkIfTrackingAccepted(
-          fromUserId, int.parse(toUserId));
+      final acceptedStatus = await _checkIfTrackingAccepted(fromUserId, int.parse(toUserId));
       if (acceptedStatus) {
         accepted = true;
         break;
       }
     }
 
-    // 4. اقفل الانتظار وابدأ التتبع
-    Navigator.of(context, rootNavigator: true).pop();
+    // 4. Close waiting dialog and update UI
+    if (Navigator.of(context, rootNavigator: true).canPop()) {
+      Navigator.of(context, rootNavigator: true).pop();
+    }
 
     if (accepted) {
       setState(() {
