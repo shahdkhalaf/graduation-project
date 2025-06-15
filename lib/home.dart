@@ -28,12 +28,12 @@ class _HomeScreenState extends State<HomeScreen> {
 
   String selectedStartingPoint = "اختر نقطة الانطلاق";
   String destination = "اختر الوجهة";
-  String? currentLocationName;  // لما يحصل تتبع فعلي
+  String? currentLocationName; // لما يحصل تتبع فعلي
   Timer? _checkRequestsTimer;
   Timer? _sendLocationTimer;
   bool _sendingLocation = false;
   bool isTracking = false; // Live‐tracking flag
-  int? trackingUserId;// ID being tracked
+  int? trackingUserId; // ID being tracked
 
   MapboxMap? mapboxMap; // Map controller
   final Location _location = Location(); // Location plugin
@@ -54,14 +54,15 @@ class _HomeScreenState extends State<HomeScreen> {
     _startCheckingRequestsTimer();
     _checkPendingTrackingRequests();
     Timer.periodic(Duration(seconds: 10), (_) => _fetchTrackedUserLocation());
-
   }
+
   @override
   void dispose() {
     _checkRequestsTimer?.cancel();
     _sendLocationTimer?.cancel();
     super.dispose();
   }
+
   void _startCheckingRequestsTimer() {
     _checkRequestsTimer?.cancel();
     _checkRequestsTimer = Timer.periodic(Duration(seconds: 15), (timer) async {
@@ -84,7 +85,8 @@ class _HomeScreenState extends State<HomeScreen> {
             final toUserId = req['to_user_id'];
 
             _checkRequestsTimer?.cancel();
-            _showIncomingTrackingRequestDialog(fromUserId: fromUserId, toUserId: toUserId);
+            _showIncomingTrackingRequestDialog(
+                fromUserId: fromUserId, toUserId: toUserId);
           }
         }
       } catch (e) {
@@ -93,8 +95,8 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
-  void _showIncomingTrackingRequestDialog({required int fromUserId, required int toUserId})
-  {
+  void _showIncomingTrackingRequestDialog(
+      {required int fromUserId, required int toUserId}) {
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -106,7 +108,7 @@ class _HomeScreenState extends State<HomeScreen> {
             TextButton(
               onPressed: () async {
                 Navigator.pop(context);
-                await  _updateTrackingRequest(fromUserId,toUserId);
+                await _updateTrackingRequest(fromUserId, toUserId);
 
                 // خزّن التتبع في SharedPreferences
                 final prefs = await SharedPreferences.getInstance();
@@ -145,35 +147,38 @@ class _HomeScreenState extends State<HomeScreen> {
     if (_sendingLocation) return;
     _sendingLocation = true;
 
-    _sendLocationTimer = Timer.periodic(const Duration(seconds: 5), (timer) async {
-      final prefs = await SharedPreferences.getInstance();
-      final fromUserId = prefs.getInt('user_id') ?? 0;
+    _sendLocationTimer =
+        Timer.periodic(const Duration(seconds: 5), (timer) async {
+          final prefs = await SharedPreferences.getInstance();
+          final fromUserId = prefs.getInt('user_id') ?? 0;
 
-      final data = await geo.Geolocator.getCurrentPosition();
-      final lat = data.latitude;
-      final lon = data.longitude;
+          final data = await geo.Geolocator.getCurrentPosition();
+          final lat = data.latitude;
+          final lon = data.longitude;
 
-      setState(() {
-        userLocation = Point(coordinates: Position(lon, lat)); // Mapbox-style
-        currentLocationName = "📍 موقعي الحالي: (${lat.toStringAsFixed(5)}, ${lon.toStringAsFixed(5)})";
-      });
+          setState(() {
+            userLocation =
+                Point(coordinates: Position(lon, lat)); // Mapbox-style
+            currentLocationName =
+            "📍 موقعي الحالي: (${lat.toStringAsFixed(5)}, ${lon.toStringAsFixed(
+                5)})";
+          });
 
-      final response = await http.post(
-        Uri.parse('https://graduation-project-production-39f0.up.railway.app/send_location'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'from_user_id': fromUserId,
-          'to_user_id': trackingUserId,
-          'latitude': lat,
-          'longitude': lon,
-        }),
-      );
+          final response = await http.post(
+            Uri.parse(
+                'https://graduation-project-production-39f0.up.railway.app/send_location'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'from_user_id': fromUserId,
+              'to_user_id': trackingUserId,
+              'latitude': lat,
+              'longitude': lon,
+            }),
+          );
 
-      print("📡 Response: ${response.statusCode}, ${response.body}");
-    });
+          print("📡 Response: ${response.statusCode}, ${response.body}");
+        });
   }
-
-
 
 
   void _stopSharing_ForTracking() {
@@ -206,7 +211,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
       setState(() {
         userLocation = Point(coordinates: Position(lng, lat));
-        currentLocationName = "📍 موقعي الحالي: (${lat.toStringAsFixed(5)}, ${lng.toStringAsFixed(5)})";
+        currentLocationName =
+        "📍 موقعي الحالي: (${lat.toStringAsFixed(5)}, ${lng.toStringAsFixed(
+            5)})";
         // ❌ شيل أي تعديل على selectedStartingPoint هنا
       });
     });
@@ -244,27 +251,28 @@ class _HomeScreenState extends State<HomeScreen> {
   void _showAcceptRejectDialog(int fromUserId) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text("Live Tracking Request"),
-        content: Text("User $fromUserId wants to track you. Accept?"),
-        actions: [
-          TextButton(
-            onPressed: () {
-              _updateTrackingRequest(fromUserId, 0); // رفض
-              Navigator.pop(context);
-            },
-            child: const Text("Reject"),
+      builder: (context) =>
+          AlertDialog(
+            title: const Text("Live Tracking Request"),
+            content: Text("User $fromUserId wants to track you. Accept?"),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  _updateTrackingRequest(fromUserId, 0); // رفض
+                  Navigator.pop(context);
+                },
+                child: const Text("Reject"),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  _updateTrackingRequest(fromUserId, 1); // قبول
+                  Navigator.pop(context);
+                  _startLiveTracking(fromUserId.toString()); // يبدأ تتبع
+                },
+                child: const Text("Accept"),
+              ),
+            ],
           ),
-          ElevatedButton(
-            onPressed: () {
-              _updateTrackingRequest(fromUserId, 1); // قبول
-              Navigator.pop(context);
-              _startLiveTracking(fromUserId.toString()); // يبدأ تتبع
-            },
-            child: const Text("Accept"),
-          ),
-        ],
-      ),
     );
   }
 
@@ -274,7 +282,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
     try {
       final response = await http.post(
-        Uri.parse('https://graduation-project-production-39f0.up.railway.app/update_tracking_request'),
+        Uri.parse(
+            'https://graduation-project-production-39f0.up.railway.app/update_tracking_request'),
         headers: {"Content-Type": "application/json"},
         body: jsonEncode({
           "from_user_id": fromUserId,
@@ -301,6 +310,7 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
+
 //####################################################################################################################################################
   Future<void> _fetchTrackedUserLocation() async {
     if (trackingUserId == null) return;
@@ -316,7 +326,8 @@ class _HomeScreenState extends State<HomeScreen> {
       final lat = latest['latitude'];
       final lon = latest['longitude'];
 
-      final manager = await mapboxMap?.annotations.createCircleAnnotationManager();
+      final manager = await mapboxMap?.annotations
+          .createCircleAnnotationManager();
 
       await manager?.create(CircleAnnotationOptions(
         geometry: Point(coordinates: Position(lon, lat)),
@@ -327,6 +338,7 @@ class _HomeScreenState extends State<HomeScreen> {
       print("🔴 Error fetching tracked user location");
     }
   }
+
   // ===================== Location Selection =====================
   void _selectLocation(bool isStartingPoint) async {
     final List<String> places = [
@@ -379,17 +391,19 @@ class _HomeScreenState extends State<HomeScreen> {
 
     final selected = await showModalBottomSheet<String>(
       context: context,
-      builder: (_) => Container(
-        padding: const EdgeInsets.all(16),
-        child: ListView(
-          children: available
-              .map((place) => ListTile(
-            title: Text(place),
-            onTap: () => Navigator.pop(context, place),
-          ))
-              .toList(),
-        ),
-      ),
+      builder: (_) =>
+          Container(
+            padding: const EdgeInsets.all(16),
+            child: ListView(
+              children: available
+                  .map((place) =>
+                  ListTile(
+                    title: Text(place),
+                    onTap: () => Navigator.pop(context, place),
+                  ))
+                  .toList(),
+            ),
+          ),
     );
 
     if (selected != null) {
@@ -479,11 +493,13 @@ class _HomeScreenState extends State<HomeScreen> {
                       try {
                         final response = await http.post(
                           Uri.parse(
-                              'https://graduation-project-production-39f0.up.railway.app/send_tracking_request'), // عدل هنا ال link بتاعك
+                              'https://graduation-project-production-39f0.up.railway.app/send_tracking_request'),
+                          // عدل هنا ال link بتاعك
                           headers: {"Content-Type": "application/json"},
                           body: jsonEncode({
                             "from_user_id":
-                            myUserId, // هتحط هنا ال user_id بتاع ال user اللي عامل request (3 مثلا)
+                            myUserId,
+                            // هتحط هنا ال user_id بتاع ال user اللي عامل request (3 مثلا)
                             "to_user_id": int.parse(userId),
                           }),
                         );
@@ -495,7 +511,8 @@ class _HomeScreenState extends State<HomeScreen> {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                                 content: Text(
-                                    "Failed to send request: ${response.statusCode}")),
+                                    "Failed to send request: ${response
+                                        .statusCode}")),
                           );
                         }
                       } catch (e) {
@@ -524,6 +541,7 @@ class _HomeScreenState extends State<HomeScreen> {
       },
     );
   }
+
   Future<bool> _checkIfTrackingAccepted(int fromUserId, int toUserId) async {
     final response = await http.get(Uri.parse(
       'https://graduation-project-production-39f0.up.railway.app/check_tracking_requests?user_id=$toUserId',
@@ -557,7 +575,8 @@ class _HomeScreenState extends State<HomeScreen> {
     bool accepted = false;
     for (int i = 0; i < 10; i++) {
       await Future.delayed(Duration(seconds: 3));
-      final acceptedStatus = await _checkIfTrackingAccepted(fromUserId, int.parse(toUserId));
+      final acceptedStatus = await _checkIfTrackingAccepted(
+          fromUserId, int.parse(toUserId));
       if (acceptedStatus) {
         accepted = true;
         break;
@@ -766,7 +785,6 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
 
-
   // ===================== Route Confirmation Dialog =====================
   void _showRouteConfirmation({
     required String estimatedTime,
@@ -777,8 +795,10 @@ class _HomeScreenState extends State<HomeScreen> {
       context: context,
       builder: (BuildContext context) {
         return Dialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 100),
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20)),
+          insetPadding: const EdgeInsets.symmetric(
+              horizontal: 20, vertical: 100),
           child: Container(
             padding: const EdgeInsets.all(20),
             child: Column(
@@ -788,7 +808,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text("Your Route", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    const Text("Your Route", style: TextStyle(
+                        fontSize: 18, fontWeight: FontWeight.bold)),
                     GestureDetector(
                       onTap: () => Navigator.pop(context),
                       child: const Icon(Icons.close, color: Colors.grey),
@@ -796,7 +817,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   ],
                 ),
                 const SizedBox(height: 6),
-                const Text("Confirm where you are going", style: TextStyle(fontSize: 14, color: Colors.grey)),
+                const Text("Confirm where you are going",
+                    style: TextStyle(fontSize: 14, color: Colors.grey)),
                 const SizedBox(height: 20),
                 Row(
                   children: [
@@ -812,7 +834,8 @@ class _HomeScreenState extends State<HomeScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _buildLocationRow("STARTING POINT", selectedStartingPoint),
+                          _buildLocationRow(
+                              "STARTING POINT", selectedStartingPoint),
                           const SizedBox(height: 10),
                           _buildLocationRow("ENDING POINT", destination),
                         ],
@@ -832,10 +855,13 @@ class _HomeScreenState extends State<HomeScreen> {
                     onPressed: () => Navigator.pop(context),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF175579),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-                      padding: const EdgeInsets.symmetric(vertical: 14.0, horizontal: 40.0),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(30)),
+                      padding: const EdgeInsets.symmetric(
+                          vertical: 14.0, horizontal: 40.0),
                     ),
-                    child: const Text("Confirm Route", style: TextStyle(fontSize: 16, color: Colors.white)),
+                    child: const Text("Confirm Route",
+                        style: TextStyle(fontSize: 16, color: Colors.white)),
                   ),
                 ),
               ],
@@ -879,7 +905,8 @@ class _HomeScreenState extends State<HomeScreen> {
               onPressed: _stopSharing_ForTracking,
               style: ElevatedButton.styleFrom(
                 backgroundColor: Color(0xFF175579),
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 16, vertical: 12),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
@@ -901,12 +928,13 @@ class _HomeScreenState extends State<HomeScreen> {
       mainAxisSize: MainAxisSize.min,
       children: List.generate(
         6,
-            (index) => Container(
-          width: 2,
-          height: 5,
-          color: Colors.grey.shade600,
-          margin: const EdgeInsets.symmetric(vertical: 2),
-        ),
+            (index) =>
+            Container(
+              width: 2,
+              height: 5,
+              color: Colors.grey.shade600,
+              margin: const EdgeInsets.symmetric(vertical: 2),
+            ),
       ),
     );
   }
@@ -1000,7 +1028,8 @@ class _HomeScreenState extends State<HomeScreen> {
             Align(
               alignment: Alignment.bottomCenter,
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 27),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 16, vertical: 27),
                 decoration: const BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
@@ -1029,30 +1058,32 @@ class _HomeScreenState extends State<HomeScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               GestureDetector(
-                              onTap: () => _selectLocation(true),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildLocationRow(
-                      "STARTING POINT",
-                      currentLocationName ?? selectedStartingPoint,
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      currentLocationName != null
-                          ? "📍 يتم عرض موقعك الحالي تلقائيًا"
-                          : "🧭 هذه نقطة الانطلاق التي اخترتها",
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey.shade600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+                                onTap: () => _selectLocation(true),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    _buildLocationRow(
+                                      "STARTING POINT",
+                                      currentLocationName ??
+                                          selectedStartingPoint,
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      currentLocationName != null
+                                          ? "📍 يتم عرض موقعك الحالي تلقائيًا"
+                                          : "🧭 هذه نقطة الانطلاق التي اخترتها",
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.grey.shade600,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
 
                               const SizedBox(height: 12),
-                              Divider(color: Colors.grey.shade300, thickness: 1),
+                              Divider(
+                                  color: Colors.grey.shade300, thickness: 1),
                               const SizedBox(height: 12),
                               Row(
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -1061,7 +1092,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                     child: GestureDetector(
                                       onTap: () => _selectLocation(false),
                                       child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        crossAxisAlignment: CrossAxisAlignment
+                                            .start,
                                         children: [
                                           _buildLocationRow(
                                             "ENDING POINT",
@@ -1092,17 +1124,22 @@ class _HomeScreenState extends State<HomeScreen> {
                                       style: ElevatedButton.styleFrom(
                                         backgroundColor: Colors.grey.shade400,
                                         shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(30),
+                                          borderRadius: BorderRadius.circular(
+                                              30),
                                         ),
                                       ),
-                                      child: const Text("GO", style: TextStyle(color: Colors.white)),
+                                      child: const Text("GO", style: TextStyle(
+                                          color: Colors.white)),
                                     )
                                         : buildGoButton(
                                       context: context,
                                       mapController: mapboxMap!,
                                       currentLocation: userLocation,
-                                      destination: destination,
-                                      onShowRouteConfirmation: (String estimatedTime, String estimatedWait, String price) {
+                                      startingPoint: selectedStartingPoint,
+                                      endingPoint: destination,
+                                      onShowRouteConfirmation: (
+                                          String estimatedTime,
+                                          String estimatedWait, String price) {
                                         _showRouteConfirmation(
                                           estimatedTime: estimatedTime,
                                           estimatedWait: estimatedWait,
@@ -1127,7 +1164,6 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
-
 
 
   Widget _buildDrawer() {

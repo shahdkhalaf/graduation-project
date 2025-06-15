@@ -1,7 +1,6 @@
 // lib/components/go_button.dart
 
 import 'dart:convert';
-import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
@@ -30,93 +29,118 @@ Widget buildGoButton({
   required BuildContext context,
   required MapboxMap mapController,
   required Point? currentLocation,
-  required String destination,
+  required String startingPoint, // required, station name
+  required String endingPoint,   // required, station name
   required Function(String estimatedTime, String estimatedWait, String price)? onShowRouteConfirmation,
 }) {
   return ElevatedButton(
     onPressed: () async {
-      if (!_stationCoords.containsKey(destination)) {
+      // Validate station names
+      if (!_stationCoords.containsKey(startingPoint) || !_stationCoords.containsKey(endingPoint)) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Please select a valid destination station.")),
+          const SnackBar(content: Text("Please select valid stations.")),
         );
         return;
       }
 
-      String? nearestName;
-      double? nearestDist;
-      List<double>? nearestCoords;
+      // Remove previous route layers/sources if exist
+      for (final id in [
+        "walk-route-layer", "walk-route-source",
+        "bus-route-layer", "bus-route-source"
+      ]) {
+        try { await mapController.style.removeStyleLayer(id); } catch (_) {}
+        try { await mapController.style.removeStyleSource(id); } catch (_) {}
+      }
+
+      // 1. Dashed Green Walking Line: userLocation → startingPoint
       if (currentLocation != null) {
-        final curr = currentLocation.coordinates.toJson();
-        for (var entry in _stationCoords.entries) {
-          final name = entry.key;
-          final coords = entry.value;
-          final dx = (curr[0] - coords[0]).abs();
-          final dy = (curr[1] - coords[1]).abs();
-          final meters = sqrt(dx * dx + dy * dy) * 111000;
-          if (nearestDist == null || meters < nearestDist) {
-            nearestDist = meters;
-            nearestName = name;
-            nearestCoords = coords;
-          }
-        }
-      }
-
-      if (nearestName == null || nearestCoords == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Could not determine your nearest station.")),
+        final userCoords = currentLocation.coordinates.toJson();
+        final startCoords = _stationCoords[startingPoint]!;
+        final walkUrl = Uri.parse(
+          'https://api.mapbox.com/directions/v5/mapbox/walking/'
+          '${userCoords[0]},${userCoords[1]};${startCoords[0]},${startCoords[1]}'
+          '?geometries=geojson'
+          '&access_token=$_MAPBOX_TOKEN'
         );
-        return;
-      }
-
-      final atStation = nearestDist! < 50;
-
-      if (!atStation && currentLocation != null) {
-        final startCoords = currentLocation.coordinates.toJson();
-        final start = "${startCoords[0]},${startCoords[1]}";
-        final end   = "${nearestCoords[0]},${nearestCoords[1]}";
-
-        final url = Uri.parse(
-            'https://api.mapbox.com/directions/v5/mapbox/walking/$start;$end'
-                '?geometries=geojson'
-                '&access_token=$_MAPBOX_TOKEN'
-        );
-        final resp = await http.get(url);
-        if (resp.statusCode == 200) {
-          final data = jsonDecode(resp.body);
-          final coords = (data['routes'][0]['geometry']['coordinates'] as List)
+        final resp1 = await http.get(walkUrl);
+        if (resp1.statusCode == 200) {
+          final data1 = jsonDecode(resp1.body);
+          final coords1 = (data1['routes'][0]['geometry']['coordinates'] as List)
               .cast<List<dynamic>>()
               .map((pt) => pt.cast<double>())
               .toList();
 
-          try { await mapController.style.removeStyleLayer("route-layer"); } catch (_) {}
-          try { await mapController.style.removeStyleSource("route-source"); } catch (_) {}
-
-          final geojson = jsonEncode({
+          final geojson1 = jsonEncode({
             "type": "FeatureCollection",
             "features": [
               {
                 "type": "Feature",
                 "geometry": {
                   "type": "LineString",
-                  "coordinates": coords,
+                  "coordinates": coords1,
                 }
               }
             ]
           });
           await mapController.style.addSource(
-            GeoJsonSource(id: "route-source", data: geojson),
+            GeoJsonSource(id: "walk-route-source", data: geojson1),
           );
           await mapController.style.addLayer(
             LineLayer(
-              id: "route-layer",
-              sourceId: "route-source",
-              lineColor: Color(0xFF175579).value,
+              id: "walk-route-layer",
+              sourceId: "walk-route-source",
+              lineColor: 0xFF00C853, // green
               lineWidth: 4.0,
+              lineDasharray: [2.0, 2.0], // dashed
               lineJoin: LineJoin.ROUND,
               lineCap: LineCap.ROUND,
             ),
           );
         }
+      }
+
+      // 2. Solid Blue Bus Line: startingPoint → endingPoint
+      final startCoords = _stationCoords[startingPoint]!;
+      final endCoords = _stationCoords[endingPoint]!;
+      final busUrl = Uri.parse(
+        'https://api.mapbox.com/directions/v5/mapbox/driving/'
+        '${startCoords[0]},${startCoords[1]};${endCoords[0]},${endCoords[1]}'
+        '?geometries=geojson'
+        '&access_token=$_MAPBOX_TOKEN'
+      );
+      final resp2 = await http.get(busUrl);
+      if (resp2.statusCode == 200) {
+        final data2 = jsonDecode(resp2.body);
+        final coords2 = (data2['routes'][0]['geometry']['coordinates'] as List)
+            .cast<List<dynamic>>()
+            .map((pt) => pt.cast<double>())
+            .toList();
+
+        final geojson2 = jsonEncode({
+          "type": "FeatureCollection",
+          "features": [
+            {
+              "type": "Feature",
+              "geometry": {
+                "type": "LineString",
+                "coordinates": coords2,
+              }
+            }
+          ]
+        });
+        await mapController.style.addSource(
+          GeoJsonSource(id: "bus-route-source", data: geojson2),
+        );
+        await mapController.style.addLayer(
+          LineLayer(
+            id: "bus-route-layer",
+            sourceId: "bus-route-source",
+            lineColor: 0xFF175579, // blue
+            lineWidth: 4.0,
+            lineJoin: LineJoin.ROUND,
+            lineCap: LineCap.ROUND,
+          ),
+        );
       }
 
       // Time bucket
@@ -139,14 +163,14 @@ Widget buildGoButton({
       final waitResult = await ApiService.fetchWaitingTimeFull(
         age: 23,
         gender: "female",
-        from: nearestName,
-        to: destination,
+        from: startingPoint,
+        to: endingPoint,
         time: timeBucket,
         isRainy: "no",
         isWeekend: isWeekend,
       );
 
-      final price = await ApiService.fetchPrice(from: nearestName, to: destination);
+      final price = await ApiService.fetchPrice(from: startingPoint, to: endingPoint);
 
       if (waitResult == null) {
         if (!context.mounted) return;
@@ -169,12 +193,8 @@ Widget buildGoButton({
         return;
       }
 
-      final header = atStation
-          ? "You’re already at $nearestName."
-          : "Closest station is $nearestName.";
       final msg = StringBuffer()
-        ..writeln(header)
-        ..writeln("Wait-time to $destination:")
+        ..writeln("Wait-time to $endingPoint:")
         ..writeln(" • Median: ${q50.toInt()} mins")
         ..writeln(" • IQR: ${q25.toInt()}–${q75.toInt()} mins")
         ..writeln("💰 Route Price: ${price ?? 'N/A'}");
@@ -202,4 +222,3 @@ Widget buildGoButton({
     child: const Text("GO", style: TextStyle(fontSize: 16, color: Colors.white)),
   );
 }
-
