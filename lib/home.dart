@@ -1075,14 +1075,13 @@ class _HomeScreenState extends State<HomeScreen> {
                                   children: [
                                     _buildLocationRow(
                                       "STARTING POINT",
-                                      currentLocationName ??
                                           selectedStartingPoint,
                                     ),
                                     const SizedBox(height: 4),
                                     Text(
                                       currentLocationName != null
-                                          ? "📍 يتم عرض موقعك الحالي تلقائيًا"
-                                          : "🧭 هذه نقطة الانطلاق التي اخترتها",
+                                          ? "📍 نقطة البداية"
+                                          : "🧭 اختار الموقف اللي هتركب منه",
                                       style: TextStyle(
                                         fontSize: 12,
                                         color: Colors.grey.shade600,
@@ -1113,8 +1112,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                           const SizedBox(height: 4),
                                           Text(
                                             destination != "اختر الوجهة"
-                                                ? "🎯 هذه وجهتك التي اخترتها يدويًا"
-                                                : "🚩 لم يتم اختيار وجهة بعد",
+                                                ? "🎯 الوجهة النهائية"
+                                                : "🚩 اختار الموقف اللي عايز تروحله",
                                             style: TextStyle(
                                               fontSize: 12,
                                               color: Colors.grey.shade600,

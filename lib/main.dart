@@ -33,7 +33,7 @@ class MyApp extends StatelessWidget {
       routes: {
         '/splash': (context) => const SplashScreen(),
         '/signin': (context) => const SignInScreen(),
-        '/signup': (context) => const SignUpScreen(),
+        '/signup': (context) =>  SignUpPage(),
         '/home': (context) => const HomeScreen(),
       },
     );
@@ -401,7 +401,7 @@ class _SignInScreenState extends State<SignInScreen> {
                 ),
                 // Bottom text
                 Padding(
-                  padding: const EdgeInsets.only(bottom: 78),
+                  padding: const EdgeInsets.only(bottom: 150),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
@@ -414,7 +414,7 @@ class _SignInScreenState extends State<SignInScreen> {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => const SignUpScreen(),
+                              builder: (context) => SignUpPage(),
                             ),
                           );
                         },

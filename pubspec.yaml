@@ -50,7 +50,7 @@ dependencies:
 
   # For decoding the Mapbox polyline
   flutter_polyline_points: ^1.0.0
-
+  google_sign_in: ^6.1.5
   dotted_border: ^2.0.0
   image_picker: ^1.1.2  # (or your current version)
 
@@ -93,6 +93,7 @@ flutter:
     - assets/icons/blue_dot.png
     - assets/icons/red_station.png
     - assets/icons/grey_station.png
+    - assets/android_dark_rd_SI@1x.png
 
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in
