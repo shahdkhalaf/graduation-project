@@ -69,7 +69,9 @@ class _HomeScreenState extends State<HomeScreen> {
     _checkRequestsTimer?.cancel();
     _checkRequestsTimer = Timer.periodic(Duration(seconds: 15), (timer) async {
       final prefs = await SharedPreferences.getInstance();
-      final myUserId = prefs.getInt('user_id') ?? 0;
+      // Fix: Always parse user_id as int
+      final myUserIdString = prefs.getString('user_id');
+      final myUserId = int.tryParse(myUserIdString ?? '') ?? 0;
 
       try {
         final response = await http.get(

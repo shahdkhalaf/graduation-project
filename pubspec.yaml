@@ -35,7 +35,6 @@ dependencies:
   shared_preferences: ^2.2.2
   webview_flutter: ^4.4.2
 
-
   # ← Add this line (or update to the latest 2.x version)
 
   # Use a 0.14.x version of mapbox_maps_flutter, NOT 0.15+

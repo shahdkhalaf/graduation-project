@@ -1,10 +1,11 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'home.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-
+import 'package:webview_flutter/webview_flutter.dart';
 class SignUpPage extends StatefulWidget {
   @override
   _SignUpPageState createState() => _SignUpPageState();
@@ -22,7 +23,8 @@ class _SignUpPageState extends State<SignUpPage> {
   final TextEditingController _lastNameController = TextEditingController();
   String? _district;
   String? _gender;
-
+  final Completer<WebViewController> controller = Completer<WebViewController>();
+  String token = '';
   final List<String> _districts = ['الكيلو 21', 'الهانوفيل', 'البيطاش'];
   final List<String> _genders = ['Male', 'Female', 'Other'];
 
@@ -38,10 +40,16 @@ class _SignUpPageState extends State<SignUpPage> {
       String gender = _gender ?? '';
       String district = _district ?? '';
 
+      // --- Get reCAPTCHA token ---
+      String recaptchaToken = await getRecaptchaToken(); // Implement this method in your app
+
       final url = Uri.parse('https://graduation-project-production-39f0.up.railway.app/signup');
       final response = await http.post(
         url,
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $recaptchaToken', // Send reCAPTCHA token here
+        },
         body: jsonEncode({
           'first_name': firstName,
           'last_name': lastName,
@@ -291,6 +299,42 @@ class _SignUpPageState extends State<SignUpPage> {
         ),
       ],
     );
+  }
+
+  Future<String> getRecaptchaToken() async {
+    // This HTML page loads reCAPTCHA v2 and posts the token back to Flutter
+
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: const Text("Security Check"),
+        content: SizedBox(
+          height: 150,
+          child: Column(
+            children: [
+              const Text("Please confirm you're not a bot."),
+              const SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: () async {
+                  // Simulate a token fetch (replace with real token logic later)
+                  token = "dummy_token_12345";
+                  Navigator.of(context).pop();
+                },
+                child: const Text("I'm not a robot"),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+
+
+    if (token == null) {
+      throw Exception('reCAPTCHA verification cancelled or failed.');
+    }
+    return token!;
   }
 
 }
