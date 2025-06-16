@@ -6,6 +6,47 @@ import 'home.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:webview_flutter/webview_flutter.dart';
+enum PasswordStrength { weak, medium, strong }
+
+PasswordStrength getPasswordStrength(String password) {
+  if (password.length < 8) return PasswordStrength.weak;
+  bool hasLower = password.contains(RegExp(r'[a-z]'));
+  bool hasUpper = password.contains(RegExp(r'[A-Z]'));
+  bool hasDigit = password.contains(RegExp(r'\d'));
+  bool hasSpecial = password.contains(RegExp(r'[\W_]'));
+  int score = [hasLower, hasUpper, hasDigit, hasSpecial].where((b) => b).length;
+
+  if (score == 4 && password.length >= 12) return PasswordStrength.strong;
+  if (score >= 3) return PasswordStrength.medium;
+  return PasswordStrength.weak;
+}
+
+String getPasswordStrengthMessage(PasswordStrength strength) {
+  switch (strength) {
+    case PasswordStrength.strong:
+      return "Strong password";
+    case PasswordStrength.medium:
+      return "Medium password. Add more unique characters for extra security.";
+    case PasswordStrength.weak:
+    default:
+      return "Weak password. Try including numbers, uppercase, and symbols.";
+  }
+}
+
+Color getPasswordStrengthColor(PasswordStrength strength) {
+  switch (strength) {
+    case PasswordStrength.strong:
+      return Colors.green;
+    case PasswordStrength.medium:
+      return Colors.orange;
+    case PasswordStrength.weak:
+    default:
+      return Colors.red;
+  }
+}
+
+final RegExp _passwordRegex = RegExp(r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,}$');
+
 class SignUpPage extends StatefulWidget {
   @override
   _SignUpPageState createState() => _SignUpPageState();
@@ -14,7 +55,7 @@ class SignUpPage extends StatefulWidget {
 class _SignUpPageState extends State<SignUpPage> {
   int _currentStep = 0;
   final _formKeys = [GlobalKey<FormState>(), GlobalKey<FormState>()];
-
+  PasswordStrength _passwordStrength = PasswordStrength.weak;
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _confirmPasswordController = TextEditingController();
@@ -28,7 +69,9 @@ class _SignUpPageState extends State<SignUpPage> {
   final List<String> _districts = ['الكيلو 21', 'الهانوفيل', 'البيطاش'];
   final List<String> _genders = ['Male', 'Female', 'Other'];
 
-  final RegExp _emailRegex = RegExp(r"^[a-zA-Z0-9.!#\$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*");
+  final RegExp _emailRegex = RegExp(
+      r"^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$"
+  );
 
   Future<void> _signUp() async {
     if (_formKeys[1].currentState?.validate() ?? false) {
@@ -173,6 +216,36 @@ class _SignUpPageState extends State<SignUpPage> {
     );
 
   }
+  Widget _buildPasswordStrengthBar() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          height: 8,
+          child: LinearProgressIndicator(
+            value: _passwordStrength == PasswordStrength.strong
+                ? 1
+                : _passwordStrength == PasswordStrength.medium
+                    ? 0.6
+                    : 0.3,
+            backgroundColor: Colors.grey.shade300,
+            valueColor: AlwaysStoppedAnimation<Color>(
+              getPasswordStrengthColor(_passwordStrength),
+            ),
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          getPasswordStrengthMessage(_passwordStrength),
+          style: TextStyle(
+            color: getPasswordStrengthColor(_passwordStrength),
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ],
+    );
+  }
   Widget _buildStepper() {
     return Stepper(
       type: StepperType.vertical,
@@ -243,8 +316,23 @@ class _SignUpPageState extends State<SignUpPage> {
                   controller: _passwordController,
                   obscureText: true,
                   decoration: _inputDecoration('Password'),
-                  validator: (value) => value == null || value.length < 6 ? 'Minimum 6 characters' : null,
+                  onChanged: (value) {
+                    setState(() {
+                      _passwordStrength = getPasswordStrength(value);
+                    });
+                  },
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Password is required';
+                    }
+                    if (!_passwordRegex.hasMatch(value)) {
+                      return 'Password must be at least 8 characters and include uppercase, lowercase, number, and symbol';
+                    }
+                    return null;
+                  },
                 ),
+                const SizedBox(height: 6),
+                _buildPasswordStrengthBar(),
                 const SizedBox(height: 10),
                 TextFormField(
                   controller: _confirmPasswordController,
