@@ -169,10 +169,7 @@ class _HomeScreenState extends State<HomeScreen> {
         final lat = data.latitude;
         final lon = data.longitude;
 
-        if (lat == null || lon == null) {
-          debugPrint("send_location: lat/lng is null, skipping API call");
-          return;
-        }
+        // lat and lon are non-nullable, so no need to check for null
 
         if (mounted) {
           setState(() {

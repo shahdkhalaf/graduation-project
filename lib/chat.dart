@@ -20,7 +20,7 @@ class _ChatAssistScreenState extends State<ChatAssistScreen> {
 
   static const String _chatbotBaseUrl =
       "https://1aad-156-212-124-122.ngrok-free.app/api/query";
-  static const String _chatPath = "/api/query";
+  //static const String _chatPath = "/api/query";
 
   Future<void> _sendMessage() async {
     final text = _controller.text.trim();
