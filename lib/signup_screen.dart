@@ -40,15 +40,13 @@ class _SignUpPageState extends State<SignUpPage> {
       String gender = _gender ?? '';
       String district = _district ?? '';
 
-      // --- Get reCAPTCHA token ---
-      String recaptchaToken = await getRecaptchaToken(); // Implement this method in your app
+      // reCAPTCHA logic removed
 
       final url = Uri.parse('https://graduation-project-production-39f0.up.railway.app/signup');
       final response = await http.post(
         url,
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer $recaptchaToken', // Send reCAPTCHA token here
         },
         body: jsonEncode({
           'first_name': firstName,
@@ -77,6 +75,11 @@ class _SignUpPageState extends State<SignUpPage> {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (context) => const HomeScreen()),
+        );
+      } else if (response.statusCode == 429) {
+        // Rate limit exceeded
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Too many signup attempts. Please try again in 10 minutes.')),
         );
       } else {
         final error = jsonDecode(response.body)['error'] ?? 'Signup failed';
@@ -299,42 +302,6 @@ class _SignUpPageState extends State<SignUpPage> {
         ),
       ],
     );
-  }
-
-  Future<String> getRecaptchaToken() async {
-    // This HTML page loads reCAPTCHA v2 and posts the token back to Flutter
-
-    await showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        title: const Text("Security Check"),
-        content: SizedBox(
-          height: 150,
-          child: Column(
-            children: [
-              const Text("Please confirm you're not a bot."),
-              const SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: () async {
-                  // Simulate a token fetch (replace with real token logic later)
-                  token = "dummy_token_12345";
-                  Navigator.of(context).pop();
-                },
-                child: const Text("I'm not a robot"),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-
-
-
-    if (token == null) {
-      throw Exception('reCAPTCHA verification cancelled or failed.');
-    }
-    return token!;
   }
 
 }

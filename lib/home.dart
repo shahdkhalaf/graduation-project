@@ -38,7 +38,8 @@ class _HomeScreenState extends State<HomeScreen> {
   MapboxMap? mapboxMap; // Map controller
   final Location _location = Location(); // Location plugin
   Point? userLocation; // Latest user location
-  StreamSubscription<LocationData>? _locationSubscription; // Add this
+  StreamSubscription<LocationData>? _locationSubscription;
+  DateTime? _lastLocationSentAt; // Add this for rate limiting
 
   @override
   void initState() {
@@ -151,7 +152,15 @@ class _HomeScreenState extends State<HomeScreen> {
     if (_sendingLocation) return;
     _sendingLocation = true;
 
-    _sendLocationTimer = Timer.periodic(const Duration(seconds: 5), (timer) async {
+    _sendLocationTimer = Timer.periodic(const Duration(seconds: 1), (timer) async {
+      final now = DateTime.now();
+      // Only send if 5 seconds have passed since last send
+      if (_lastLocationSentAt != null &&
+          now.difference(_lastLocationSentAt!).inSeconds < 5) {
+        // Too soon, skip this tick
+        return;
+      }
+
       final prefs = await SharedPreferences.getInstance();
       final fromUserId = prefs.getInt('user_id') ?? 0;
 
@@ -173,6 +182,7 @@ class _HomeScreenState extends State<HomeScreen> {
           });
         }
 
+        // Send location update
         final response = await http.post(
           Uri.parse('https://graduation-project-production-39f0.up.railway.app/send_location'),
           headers: {'Content-Type': 'application/json'},
@@ -185,6 +195,7 @@ class _HomeScreenState extends State<HomeScreen> {
         );
 
         debugPrint("📡 Response: ${response.statusCode}, ${response.body}");
+        _lastLocationSentAt = now; // Update last sent time
       } catch (e) {
         debugPrint("Error getting/sending location: $e");
       }

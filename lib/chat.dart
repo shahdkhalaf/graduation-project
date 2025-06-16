@@ -16,6 +16,7 @@ class _ChatAssistScreenState extends State<ChatAssistScreen> {
   ];
   final TextEditingController _controller = TextEditingController();
   bool _isSending = false;
+  bool _isSubmitLocked = false; // <-- Add this line
 
   static const String _chatbotBaseUrl =
       "https://1aad-156-212-124-122.ngrok-free.app/api/query";
@@ -28,6 +29,7 @@ class _ChatAssistScreenState extends State<ChatAssistScreen> {
     setState(() {
       _messages.add(ChatMessage(text: text, isUser: true));
       _isSending = true;
+      _isSubmitLocked = true; // <-- Lock the send button
       _controller.clear();
     });
 
@@ -74,6 +76,7 @@ class _ChatAssistScreenState extends State<ChatAssistScreen> {
     } finally {
       setState(() {
         _isSending = false;
+        _isSubmitLocked = false; // <-- Unlock the send button after sending
       });
     }
   }
@@ -163,15 +166,15 @@ class _ChatAssistScreenState extends State<ChatAssistScreen> {
                   ),
                   const SizedBox(width: 8),
                   InkWell(
-                    onTap: _isSending ? null : _sendMessage,
+                    onTap: (_isSending || _isSubmitLocked) ? null : _sendMessage, // <-- Disable when locked
                     child: CircleAvatar(
                       radius: 24,
-                      backgroundColor: _isSending
+                      backgroundColor: (_isSending || _isSubmitLocked)
                           ? Colors.grey.shade300
                           : const Color(0xFF175579),
                       child: Icon(
                         _isSending ? Icons.hourglass_empty : Icons.send,
-                        color: _isSending ? Colors.grey : Colors.white,
+                        color: (_isSending || _isSubmitLocked) ? Colors.grey : Colors.white,
                       ),
                     ),
                   ),

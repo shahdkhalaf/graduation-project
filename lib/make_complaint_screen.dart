@@ -15,6 +15,7 @@ class _MakeComplaintScreenState extends State<MakeComplaintScreen> {
   final TextEditingController _detailsController = TextEditingController();
   String? selectedComplaintType;
   XFile? imageFile;
+  bool _isSubmitting = false;
 
   final List<String> complaintTypes = [
     'رفع سعر المواصلة',
@@ -44,7 +45,8 @@ class _MakeComplaintScreenState extends State<MakeComplaintScreen> {
     }
   }
 
-  void _submitComplaint() {
+  // Replace _submitComplaint with _handleSubmit and update button logic
+  Future<void> _handleSubmit() async {
     if (selectedComplaintType == null || _detailsController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please select a complaint type and provide details.')),
@@ -242,7 +244,13 @@ class _MakeComplaintScreenState extends State<MakeComplaintScreen> {
   Widget _buildSubmitButton() => SizedBox(
     height: 50,
     child: ElevatedButton(
-      onPressed: _submitComplaint,
+      onPressed: _isSubmitting
+          ? null
+          : () async {
+              setState(() => _isSubmitting = true);
+              await _handleSubmit();
+              setState(() => _isSubmitting = false);
+            },
       style: ElevatedButton.styleFrom(
         backgroundColor: const Color(0xFF175579),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
@@ -252,4 +260,3 @@ class _MakeComplaintScreenState extends State<MakeComplaintScreen> {
     ),
   );
 }
-
