@@ -53,6 +53,7 @@ class SignUpPage extends StatefulWidget {
 }
 
 class _SignUpPageState extends State<SignUpPage> {
+
   int _currentStep = 0;
   final _formKeys = [GlobalKey<FormState>(), GlobalKey<FormState>()];
   PasswordStrength _passwordStrength = PasswordStrength.weak;
@@ -391,5 +392,6 @@ class _SignUpPageState extends State<SignUpPage> {
       ],
     );
   }
+
 
 }

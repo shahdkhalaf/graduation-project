@@ -280,7 +280,7 @@ class _AccountScreenState extends State<AccountScreen>
               IconButton(
                 icon: const Icon(Icons.refresh, color: Color(0xFF175579)),
                 onPressed: _refreshUserData,
-                tooltip: 'Refresh Profile.',
+                tooltip: 'Refresh Profile',
               ),
             ],
           ),
